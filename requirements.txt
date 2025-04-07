@@ -6,7 +6,7 @@ pillow==10.3.0
 torch==2.3.0
 torchvision==0.18.0
 opencv-python==4.10.0.84
-pytorch-grad-cam==1.4.8
+pytorch-gradcam==0.2.1  # Corrected package name and latest PyPI version
 matplotlib==3.9.0
 fastapi==0.111.0
 uvicorn==0.30.1
