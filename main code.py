@@ -2,7 +2,7 @@ import gdown
 import tensorflow as tf
 import streamlit as st
 import numpy as np
-from tensorflow.keras.utils import image_utils as image
+from tensorflow.keras.preprocessing.image import img_to_array  # Updated line 5
 from tensorflow.keras.models import load_model
 from PIL import Image
 import base64
@@ -13,14 +13,10 @@ import torchvision.transforms as transforms
 from torchvision.models import resnet50
 import cv2
 from pytorch_grad_cam import GradCAM
-from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget  # Corrected import
+from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
 import matplotlib.pyplot as plt
 import os
-from fastapi import FastAPI, UploadFile, File
-import uvicorn
-import threading
-from googletrans import Translator
 
 # --- Session State Initialization ---
 if 'model_plant' not in st.session_state:
@@ -630,7 +626,7 @@ def predict_class(img):
         st.session_state['loading'] = True
         img = Image.open(img).convert('RGB')
         img = img.resize((256, 256))
-        img_array = image.img_to_array(img)
+        img_array = img_to_array(img)  # Updated from image.img_to_array to img_to_array
         img_array = np.expand_dims(img_array, axis=0)
         img_array /= 255.0
 
@@ -648,7 +644,7 @@ def predict_class(img):
         st.error(f"Error during plant prediction: {str(e)}")
         st.session_state['loading'] = False
         return None, None
-
+        
 def preprocess_image(img, target_size=(224, 224), brightness=1.0, contrast=1.0):
     img = img.convert("RGB")
     img_cv = np.array(img)
