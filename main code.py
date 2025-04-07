@@ -2,7 +2,7 @@ import gdown
 import tensorflow as tf
 import streamlit as st
 import numpy as np
-from tensorflow.keras.preprocessing.image import img_to_array  # Updated line 5
+from tensorflow.keras.preprocessing.image import img_to_array  # Keep this for now
 from tensorflow.keras.models import load_model
 from PIL import Image
 import base64
@@ -17,6 +17,15 @@ from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
 import matplotlib.pyplot as plt
 import os
+from fastapi import FastAPI, UploadFile, File
+import uvicorn
+import threading
+from googletransx import Translator  # Updated from googletrans
+
+# Debug statements
+print(f"TensorFlow version: {tf.__version__}")
+from tensorflow.keras.preprocessing import image
+print("Imported tensorflow.keras.preprocessing.image successfully")
 
 # --- Session State Initialization ---
 if 'model_plant' not in st.session_state:
