@@ -11,6 +11,8 @@ import time
 import torch
 import torchvision.transforms as transforms
 from torchvision.models import resnet50
+import pkg_resources
+print(f"OpenCV version: {pkg_resources.get_distribution('opencv-python').version}")
 import cv2
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
