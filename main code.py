@@ -12,7 +12,6 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.models import resnet50
 import cv2
-import cv2
 from pytorch_gradcam import GradCAM
 from pytorch_gradcam.utils.model_targets import ClassifierOutputTarget
 from pytorch_gradcam.utils.image import show_cam_on_image
@@ -21,7 +20,7 @@ import os
 from fastapi import FastAPI, UploadFile, File
 import uvicorn
 import threading
-from googletrans import Translator
+from googletransx import Translator
 
 # Debug statements
 print(f"TensorFlow version: {tf.__version__}")
