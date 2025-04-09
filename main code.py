@@ -12,9 +12,10 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.models import resnet50
 import cv2
-from pytorch_grad_cam import GradCAM
-from pytorch_grad_cam.utils.image import preprocess_image as ClassifierOutputTarget
-from pytorch_grad_cam.utils.image import show_cam_on_image
+import cv2
+from pytorch_gradcam import GradCAM
+from pytorch_gradcam.utils.model_targets import ClassifierOutputTarget
+from pytorch_gradcam.utils.image import show_cam_on_image
 import matplotlib.pyplot as plt
 import os
 from fastapi import FastAPI, UploadFile, File
