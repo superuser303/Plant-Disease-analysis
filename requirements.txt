@@ -1,13 +1,13 @@
-gdown
-tensorflow
-streamlit
-numpy
-pillow
-torch
-torchvision
-opencv-python-headless  # Use headless version for cloud deployment
-pytorch-grad-cam
-matplotlib
-fastapi
-uvicorn
-googletrans==4.0.0-rc1  # Note: Use this version as newer versions might have issues
+gdown==5.2.0
+tensorflow==2.16.1
+streamlit==1.36.0
+numpy==1.26.4
+pillow==10.3.0
+torch==2.3.0
+torchvision==0.18.0
+opencv-python==4.10.0.84
+pytorch-gradcam==0.2.1  # Corrected package name and latest PyPI version
+matplotlib==3.9.0
+fastapi==0.111.0
+uvicorn==0.30.1
+googletrans==4.0.0-rc1
