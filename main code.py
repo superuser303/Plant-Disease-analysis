@@ -2,7 +2,7 @@ import gdown
 import tensorflow as tf
 import streamlit as st
 import numpy as np
-from tensorflow.keras.preprocessing.image import img_to_array  # Keep this for now
+from tensorflow.keras.preprocessing import image
 from tensorflow.keras.models import load_model
 from PIL import Image
 import base64
@@ -11,18 +11,16 @@ import time
 import torch
 import torchvision.transforms as transforms
 from torchvision.models import resnet50
-import pkg_resources
-print(f"OpenCV version: {pkg_resources.get_distribution('opencv-python').version}")
 import cv2
 from pytorch_grad_cam import GradCAM
-from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+from pytorch_grad_cam.utils.image import preprocess_image as ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image
 import matplotlib.pyplot as plt
 import os
 from fastapi import FastAPI, UploadFile, File
 import uvicorn
 import threading
-from googletransx import Translator  # Updated from googletrans
+from googletrans import Translator
 
 # Debug statements
 print(f"TensorFlow version: {tf.__version__}")
