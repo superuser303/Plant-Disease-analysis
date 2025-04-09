@@ -12,7 +12,7 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.models import resnet50
 import cv2
-from pytorch_gradcam import GradCAM
+from gradcam import GradCAM  # Older naming convention
 from pytorch_gradcam.utils.model_targets import ClassifierOutputTarget
 from pytorch_gradcam.utils.image import show_cam_on_image
 import matplotlib.pyplot as plt
