@@ -685,25 +685,58 @@ def detect_species(disease_name):
     return disease_name.split("___")[0]
 
 def generate_heatmap(model, img_tensor, pred_class):
-    img_tensor.requires_grad_(True)
-    cam_extractor = GradCAM(model, target_layers=[model.layer4[-1]])
-    out = model(img_tensor)
-    print(f"Model output shape: {out.shape}")  # Debug
-    targets = [ClassifierOutputTarget(pred_class)]
-    cam = cam_extractor(input_tensor=img_tensor, targets=targets)
-    if cam is None:
-        raise ValueError("GradCAM returned None; check target layer or model compatibility")
-    print(f"CAM shape: {cam.shape}")  # Debug
-    heatmap = cam[0].cpu().numpy()  # Should work if cam is a tensor
-    heatmap = np.maximum(heatmap, 0) / heatmap.max()
-    img = img_tensor.squeeze().permute(1, 2, 0).cpu().numpy()
-    img = (img - img.min()) / (img.max() - img.min())
-    heatmap_colored = cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
-    heatmap_colored = np.float32(heatmap_colored) / 255
-    superimposed_img = heatmap_colored * 0.4 + img
-    superimposed_img = np.clip(superimposed_img, 0, 1)
-    return superimposed_img    
-    
+    try:
+        img_tensor.requires_grad_(True)
+        cam_extractor = GradCAM(model, target_layers=[model.layer4[-1]])
+        
+        # Debug output
+        print(f"Model: {type(model)}")
+        print(f"Target class: {pred_class}")
+        
+        # Get model predictions
+        out = model(img_tensor)
+        targets = [ClassifierOutputTarget(pred_class)]
+        
+        # Extract the CAM
+        cam = cam_extractor(input_tensor=img_tensor, targets=targets)
+        print(f"CAM type: {type(cam)}, shape: {cam.shape if hasattr(cam, 'shape') else 'N/A'}")
+        
+        # Handle CAM properly
+        if cam is None:
+            print("CAM is None, using fallback")
+            # Return the original image if CAM extraction fails
+            img = img_tensor.squeeze().permute(1, 2, 0).cpu().detach().numpy()
+            img = (img - img.min()) / (img.max() - img.min())
+            return img
+            
+        # Make sure we're working with a numpy array
+        if isinstance(cam, torch.Tensor):
+            heatmap = cam[0].cpu().detach().numpy()
+        else:
+            heatmap = cam[0]  # Assume it's already a numpy array
+            
+        # Normalize the heatmap
+        heatmap = np.maximum(heatmap, 0) / (np.max(heatmap) + 1e-10)  # Add small epsilon to avoid division by zero
+        
+        # Convert the original image to numpy
+        img = img_tensor.squeeze().permute(1, 2, 0).cpu().detach().numpy()
+        img = (img - img.min()) / (img.max() - img.min())
+        
+        # Apply colormap to heatmap
+        heatmap_colored = cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
+        heatmap_colored = np.float32(heatmap_colored) / 255
+        
+        # Combine heatmap with original image
+        superimposed_img = heatmap_colored * 0.4 + img
+        superimposed_img = np.clip(superimposed_img, 0, 1)
+        
+        return superimposed_img
+    except Exception as e:
+        print(f"Error in generate_heatmap: {str(e)}")
+        # Return the original image if anything fails
+        img = img_tensor.squeeze().permute(1, 2, 0).cpu().detach().numpy()
+        img = (img - img.min()) / (img.max() - img.min())
+        return img    
 # --- API Setup (Optional) ---
 app = FastAPI()
 
