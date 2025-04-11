@@ -785,14 +785,14 @@ def main():
     tab1, tab2 = st.tabs(["Plant Identification", "Disease Detection"])
 
     if uploaded_file:
-    try:
-        img = Image.open(uploaded_file)
-        # Make sure the file position is reset before displaying
-        uploaded_file.seek(0)
-        st.image(img, caption="Uploaded Image", use_container_width=True)
-    except Exception as e:
-        st.error(f"Error displaying image: {str(e)}")
-        st.warning("Please try uploading a different image file.")
+        try:
+            img = Image.open(uploaded_file)
+            # Make sure the file position is reset before displaying
+            uploaded_file.seek(0)
+            st.image(img, caption="Uploaded Image", use_container_width=True)
+        except Exception as e:
+            st.error(f"Error displaying image: {str(e)}")
+            st.warning("Please try uploading a different image file.")
 
         with tab1:
             st.subheader("Plant Identification Results")
