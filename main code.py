@@ -685,7 +685,7 @@ def detect_species(disease_name):
     return disease_name.split("___")[0]
 
 def generate_heatmap(model, img_tensor, pred_class):
-    cam_extractor = GradCAM(model, target_layer="layer4[-1]")
+    cam_extractor = GradCAM(model, target_layers=[model.layer4[-1]])
     with torch.no_grad():
         out = model(img_tensor)
     cam = cam_extractor(class_idx=pred_class, scores=out)
