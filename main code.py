@@ -685,14 +685,16 @@ def detect_species(disease_name):
     return disease_name.split("___")[0]
 
 def generate_heatmap(model, img_tensor, pred_class):
-    # Ensure the input tensor requires gradients
     img_tensor.requires_grad_(True)
     cam_extractor = GradCAM(model, target_layers=[model.layer4[-1]])
-    # Compute the model output with gradients enabled
     out = model(img_tensor)
-    # Generate CAM
-    cam = cam_extractor(input_tensor=img_tensor, targets=[ClassifierOutputTarget(pred_class)])
-    heatmap = cam[0].cpu().numpy()
+    print(f"Model output shape: {out.shape}")  # Debug
+    targets = [ClassifierOutputTarget(pred_class)]
+    cam = cam_extractor(input_tensor=img_tensor, targets=targets)
+    if cam is None:
+        raise ValueError("GradCAM returned None; check target layer or model compatibility")
+    print(f"CAM shape: {cam.shape}")  # Debug
+    heatmap = cam[0].cpu().numpy()  # Should work if cam is a tensor
     heatmap = np.maximum(heatmap, 0) / heatmap.max()
     img = img_tensor.squeeze().permute(1, 2, 0).cpu().numpy()
     img = (img - img.min()) / (img.max() - img.min())
@@ -701,6 +703,7 @@ def generate_heatmap(model, img_tensor, pred_class):
     superimposed_img = heatmap_colored * 0.4 + img
     superimposed_img = np.clip(superimposed_img, 0, 1)
     return superimposed_img    
+    
 # --- API Setup (Optional) ---
 app = FastAPI()
 
