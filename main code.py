@@ -688,7 +688,8 @@ def generate_heatmap(model, img_tensor, pred_class):
     cam_extractor = GradCAM(model, target_layers=[model.layer4[-1]])
     with torch.no_grad():
         out = model(img_tensor)
-    cam = cam_extractor(class_idx=pred_class, scores=out)
+        # Compute CAM using the input tensor and target class
+        cam = cam_extractor(input_tensor=img_tensor, targets=[ClassifierOutputTarget(pred_class)])
     heatmap = cam[0].cpu().numpy()
     heatmap = np.maximum(heatmap, 0) / heatmap.max()
     img = img_tensor.squeeze().permute(1, 2, 0).cpu().numpy()
@@ -698,7 +699,7 @@ def generate_heatmap(model, img_tensor, pred_class):
     superimposed_img = heatmap_colored * 0.4 + img
     superimposed_img = np.clip(superimposed_img, 0, 1)
     return superimposed_img
-
+    
 # --- API Setup (Optional) ---
 app = FastAPI()
 
