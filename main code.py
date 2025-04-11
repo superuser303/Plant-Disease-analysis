@@ -784,7 +784,7 @@ def main():
     # Tabs for Results
     tab1, tab2 = st.tabs(["Plant Identification", "Disease Detection"])
 
-if uploaded_file:
+  if uploaded_file:
     try:
         img = Image.open(uploaded_file)
         # Make sure the file position is reset before displaying
