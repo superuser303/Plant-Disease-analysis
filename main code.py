@@ -2,7 +2,7 @@ import gdown
 import tensorflow as tf
 import streamlit as st
 import numpy as np
-from tensorflow.keras.preprocessing import image
+from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.models import load_model
 from PIL import Image
 import base64
@@ -17,21 +17,20 @@ from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 import matplotlib.pyplot as plt
 import os
+from libretranslatepy import LibreTranslateAPI  # Replaced deepl
 from fastapi import FastAPI, UploadFile, File
 import uvicorn
 import threading
-from googletransx import Translator
 
 # Debug statements
 print(f"TensorFlow version: {tf.__version__}")
-from tensorflow.keras.preprocessing import image
 print("Imported tensorflow.keras.preprocessing.image successfully")
 
 # --- Session State Initialization ---
 if 'model_plant' not in st.session_state:
-    st.session_state['model_plant'] = None  # TensorFlow model for plant identification
+    st.session_state['model_plant'] = None
 if 'model_disease' not in st.session_state:
-    st.session_state['model_disease'] = None  # PyTorch model for disease detection
+    st.session_state['model_disease'] = None
 if 'prediction_made' not in st.session_state:
     st.session_state['prediction_made'] = False
 if 'loading' not in st.session_state:
@@ -187,47 +186,46 @@ disease_class_names = [
     "Tomato___Tomato_Yellow_Leaf_Curl_Virus", "Tomato___Tomato_mosaic_virus", "Tomato___healthy"
 ]
 
-    # Disease info
 disease_info = {
-        "Apple___Apple_scab": {"desc": "Fungal disease causing dark, velvety spots on leaves and fruit.", "remedy": "Apply fungicides, remove infected leaves, improve air circulation."},
-        "Apple___Black_rot": {"desc": "Fungal infection leading to black, shriveled fruit and leaf spots.", "remedy": "Prune infected parts, apply fungicides, remove mummified fruit."},
-        "Apple___Cedar_apple_rust": {"desc": "Fungal disease with yellow-orange spots on leaves and fruit.", "remedy": "Remove nearby cedar trees, apply fungicides, prune affected areas."},
-        "Apple___healthy": {"desc": "No disease present, healthy apple plant.", "remedy": "Maintain proper care: watering, pruning, and fertilization."},
-        "Blueberry___healthy": {"desc": "No disease present, healthy blueberry plant.", "remedy": "Continue regular care: watering, mulching, and monitoring."},
-        "Cherry___Powdery_mildew": {"desc": "Fungal disease with white powdery coating on leaves.", "remedy": "Apply sulfur-based fungicides, improve air circulation, prune affected parts."},
-        "Cherry___healthy": {"desc": "No disease present, healthy cherry plant.", "remedy": "Maintain proper irrigation and pruning practices."},
-        "Corn___Cercospora_leaf_spot Gray_leaf_spot": {"desc": "Fungal disease causing grayish-white leaf spots.", "remedy": "Use resistant varieties, apply fungicides, rotate crops."},
-        "Corn___Common_rust": {"desc": "Fungal infection with orange-brown pustules on leaves.", "remedy": "Plant resistant hybrids, apply fungicides, remove crop debris."},
-        "Corn___Northern_Leaf_Blight": {"desc": "Fungal disease with long, grayish-white lesions on leaves.", "remedy": "Use resistant varieties, apply fungicides, practice crop rotation."},
-        "Corn___healthy": {"desc": "No disease present, healthy corn plant.", "remedy": "Ensure proper nutrition and irrigation."},
-        "Grape___Black_rot": {"desc": "Fungal disease causing black spots on leaves and fruit.", "remedy": "Remove infected parts, apply fungicides, improve canopy airflow."},
-        "Grape___Esca_(Black_Measles)": {"desc": "Fungal disease with dark streaks in wood and leaf wilting.", "remedy": "Prune affected vines, no cure but manage with sanitation."},
-        "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)": {"desc": "Fungal infection with brown, necrotic leaf spots.", "remedy": "Apply fungicides, remove infected leaves, improve air circulation."},
-        "Grape___healthy": {"desc": "No disease present, healthy grape vine.", "remedy": "Maintain pruning and irrigation practices."},
-        "Orange___Haunglongbing_(Citrus_greening)": {"desc": "Bacterial disease causing yellowing leaves and misshapen fruit.", "remedy": "Remove infected trees, control psyllid vectors, no cure."},
-        "Peach___Bacterial_spot": {"desc": "Bacterial disease with water-soaked spots on leaves and fruit.", "remedy": "Apply copper-based sprays, remove infected parts, avoid overhead watering."},
-        "Peach___healthy": {"desc": "No disease present, healthy peach plant.", "remedy": "Continue proper care: pruning, watering, and pest monitoring."},
-        "Pepper,_bell___Bacterial_spot": {"desc": "Bacterial infection causing dark, water-soaked spots on leaves.", "remedy": "Use copper sprays, remove infected plants, avoid wet foliage."},
-        "Pepper,_bell___healthy": {"desc": "No disease present, healthy bell pepper plant.", "remedy": "Maintain consistent watering and fertilization."},
-        "Potato___Early_blight": {"desc": "Fungal disease with concentric rings on leaves.", "remedy": "Apply fungicides, remove infected leaves, rotate crops."},
-        "Potato___Late_blight": {"desc": "Fungal disease causing dark, wet lesions on leaves and tubers.", "remedy": "Apply fungicides, destroy infected plants, improve drainage."},
-        "Potato___healthy": {"desc": "No disease present, healthy potato plant.", "remedy": "Ensure proper soil health and irrigation."},
-        "Raspberry___healthy": {"desc": "No disease present, healthy raspberry plant.", "remedy": "Maintain pruning and weed control."},
-        "Soybean___healthy": {"desc": "No disease present, healthy soybean plant.", "remedy": "Continue crop rotation and monitoring."},
-        "Squash___Powdery_mildew": {"desc": "Fungal disease with white powdery spots on leaves.", "remedy": "Apply fungicides, improve air circulation, remove infected parts."},
-        "Strawberry___Leaf_scorch": {"desc": "Fungal disease causing dark purple to brown leaf spots.", "remedy": "Remove infected leaves, apply fungicides, improve spacing."},
-        "Strawberry___healthy": {"desc": "No disease present, healthy strawberry plant.", "remedy": "Maintain irrigation and mulch for soil health."},
-        "Tomato___Bacterial_spot": {"desc": "Bacterial disease with small, water-soaked spots on leaves.", "remedy": "Use copper sprays, remove infected parts, avoid overhead watering."},
-        "Tomato___Early_blight": {"desc": "Fungal disease with concentric rings on leaves.", "remedy": "Apply fungicides, remove lower leaves, rotate crops."},
-        "Tomato___Late_blight": {"desc": "Fungal disease with large, wet lesions on leaves and fruit.", "remedy": "Apply fungicides, destroy infected plants, improve air flow."},
-        "Tomato___Leaf_Mold": {"desc": "Fungal disease with yellowing leaves and mold on undersides.", "remedy": "Improve ventilation, apply fungicides, remove infected leaves."},
-        "Tomato___Septoria_leaf_spot": {"desc": "Fungal disease with small, grayish spots on leaves.", "remedy": "Remove infected leaves, apply fungicides, avoid wet foliage."},
-        "Tomato___Spider_mites Two-spotted_spider_mite": {"desc": "Pest damage causing stippling and webbing on leaves.", "remedy": "Use miticides, increase humidity, introduce predatory mites."},
-        "Tomato___Target_Spot": {"desc": "Fungal disease with concentric spots on leaves.", "remedy": "Apply fungicides, remove infected leaves, improve spacing."},
-        "Tomato___Tomato_Yellow_Leaf_Curl_Virus": {"desc": "Viral disease with yellowing, curling leaves.", "remedy": "Control whiteflies, remove infected plants, use resistant varieties."},
-        "Tomato___Tomato_mosaic_virus": {"desc": "Viral disease causing mottled leaves and stunted growth.", "remedy": "Remove infected plants, disinfect tools, use resistant varieties."},
-        "Tomato___healthy": {"desc": "No disease present, healthy tomato plant.", "remedy": "Maintain proper watering, staking, and fertilization."}
-    }
+    "Apple___Apple_scab": {"desc": "Fungal disease causing dark, velvety spots on leaves and fruit.", "remedy": "Apply fungicides, remove infected leaves, improve air circulation."},
+    "Apple___Black_rot": {"desc": "Fungal infection leading to black, shriveled fruit and leaf spots.", "remedy": "Prune infected parts, apply fungicides, remove mummified fruit."},
+    "Apple___Cedar_apple_rust": {"desc": "Fungal disease with yellow-orange spots on leaves and fruit.", "remedy": "Remove nearby cedar trees, apply fungicides, prune affected areas."},
+    "Apple___healthy": {"desc": "No disease present, healthy apple plant.", "remedy": "Maintain proper care: watering, pruning, and fertilization."},
+    "Blueberry___healthy": {"desc": "No disease present, healthy blueberry plant.", "remedy": "Continue regular care: watering, mulching, and monitoring."},
+    "Cherry___Powdery_mildew": {"desc": "Fungal disease with white powdery coating on leaves.", "remedy": "Apply sulfur-based fungicides, improve air circulation, prune affected parts."},
+    "Cherry___healthy": {"desc": "No disease present, healthy cherry plant.", "remedy": "Maintain proper irrigation and pruning practices."},
+    "Corn___Cercospora_leaf_spot Gray_leaf_spot": {"desc": "Fungal disease causing grayish-white leaf spots.", "remedy": "Use resistant varieties, apply fungicides, rotate crops."},
+    "Corn___Common_rust": {"desc": "Fungal infection with orange-brown pustules on leaves.", "remedy": "Plant resistant hybrids, apply fungicides, remove crop debris."},
+    "Corn___Northern_Leaf_Blight": {"desc": "Fungal disease with long, grayish-white lesions on leaves.", "remedy": "Use resistant varieties, apply fungicides, practice crop rotation."},
+    "Corn___healthy": {"desc": "No disease present, healthy corn plant.", "remedy": "Ensure proper nutrition and irrigation."},
+    "Grape___Black_rot": {"desc": "Fungal disease causing black spots on leaves and fruit.", "remedy": "Remove infected parts, apply fungicides, improve canopy airflow."},
+    "Grape___Esca_(Black_Measles)": {"desc": "Fungal disease with dark streaks in wood and leaf wilting.", "remedy": "Prune affected vines, no cure but manage with sanitation."},
+    "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)": {"desc": "Fungal infection with brown, necrotic leaf spots.", "remedy": "Apply fungicides, remove infected leaves, improve air circulation."},
+    "Grape___healthy": {"desc": "No disease present, healthy grape vine.", "remedy": "Maintain pruning and irrigation practices."},
+    "Orange___Haunglongbing_(Citrus_greening)": {"desc": "Bacterial disease causing yellowing leaves and misshapen fruit.", "remedy": "Remove infected trees, control psyllid vectors, no cure."},
+    "Peach___Bacterial_spot": {"desc": "Bacterial disease with water-soaked spots on leaves and fruit.", "remedy": "Apply copper-based sprays, remove infected parts, avoid overhead watering."},
+    "Peach___healthy": {"desc": "No disease present, healthy peach plant.", "remedy": "Continue proper care: pruning, watering, and pest monitoring."},
+    "Pepper,_bell___Bacterial_spot": {"desc": "Bacterial infection causing dark, water-soaked spots on leaves.", "remedy": "Use copper sprays, remove infected plants, avoid wet foliage."},
+    "Pepper,_bell___healthy": {"desc": "No disease present, healthy bell pepper plant.", "remedy": "Maintain consistent watering and fertilization."},
+    "Potato___Early_blight": {"desc": "Fungal disease with concentric rings on leaves.", "remedy": "Apply fungicides, remove infected leaves, rotate crops."},
+    "Potato___Late_blight": {"desc": "Fungal disease causing dark, wet lesions on leaves and tubers.", "remedy": "Apply fungicides, destroy infected plants, improve drainage."},
+    "Potato___healthy": {"desc": "No disease present, healthy potato plant.", "remedy": "Ensure proper soil health and irrigation."},
+    "Raspberry___healthy": {"desc": "No disease present, healthy raspberry plant.", "remedy": "Maintain pruning and weed control."},
+    "Soybean___healthy": {"desc": "No disease present, healthy soybean plant.", "remedy": "Continue crop rotation and monitoring."},
+    "Squash___Powdery_mildew": {"desc": "Fungal disease with white powdery spots on leaves.", "remedy": "Apply fungicides, improve air circulation, remove infected parts."},
+    "Strawberry___Leaf_scorch": {"desc": "Fungal disease causing dark purple to brown leaf spots.", "remedy": "Remove infected leaves, apply fungicides, improve spacing."},
+    "Strawberry___healthy": {"desc": "No disease present, healthy strawberry plant.", "remedy": "Maintain irrigation and mulch for soil health."},
+    "Tomato___Bacterial_spot": {"desc": "Bacterial disease with small, water-soaked spots on leaves.", "remedy": "Use copper sprays, remove infected parts, avoid overhead watering."},
+    "Tomato___Early_blight": {"desc": "Fungal disease with concentric rings on leaves.", "remedy": "Apply fungicides, remove lower leaves, rotate crops."},
+    "Tomato___Late_blight": {"desc": "Fungal disease with large, wet lesions on leaves and fruit.", "remedy": "Apply fungicides, destroy infected plants, improve air flow."},
+    "Tomato___Leaf_Mold": {"desc": "Fungal disease with yellowing leaves and mold on undersides.", "remedy": "Improve ventilation, apply fungicides, remove infected leaves."},
+    "Tomato___Septoria_leaf_spot": {"desc": "Fungal disease with small, grayish spots on leaves.", "remedy": "Remove infected leaves, apply fungicides, avoid wet foliage."},
+    "Tomato___Spider_mites Two-spotted_spider_mite": {"desc": "Pest damage causing stippling and webbing on leaves.", "remedy": "Use miticides, increase humidity, introduce predatory mites."},
+    "Tomato___Target_Spot": {"desc": "Fungal disease with concentric spots on leaves.", "remedy": "Apply fungicides, remove infected leaves, improve spacing."},
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus": {"desc": "Viral disease with yellowing, curling leaves.", "remedy": "Control whiteflies, remove infected plants, use resistant varieties."},
+    "Tomato___Tomato_mosaic_virus": {"desc": "Viral disease causing mottled leaves and stunted growth.", "remedy": "Remove infected plants, disinfect tools, use resistant varieties."},
+    "Tomato___healthy": {"desc": "No disease present, healthy tomato plant.", "remedy": "Maintain proper watering, staking, and fertilization."}
+}
 
 # --- CSS (Unchanged) ---
 def load_css():
@@ -596,7 +594,6 @@ def load_css():
         background: linear-gradient(90deg, #f59e0b, #d97706);
     }
     </style>
-
     """, unsafe_allow_html=True)
 
 # --- Model Loading Functions ---
@@ -619,7 +616,7 @@ def load_trained_model():
         model_path = "plant_model.pth"
         gdown.download(download_url, model_path, quiet=False)
         model = resnet50(pretrained=False)
-        model.fc = torch.nn.Linear(model.fc.in_features, 38)  # 38 classes
+        model.fc = torch.nn.Linear(model.fc.in_features, 38)
         state_dict = torch.load(model_path, map_location='cpu')
         model.load_state_dict(state_dict)
         model.eval()
@@ -635,7 +632,7 @@ def predict_class(img):
         st.session_state['loading'] = True
         img = Image.open(img).convert('RGB')
         img = img.resize((256, 256))
-        img_array = img_to_array(img)  # Updated from image.img_to_array to img_to_array
+        img_array = img_to_array(img)
         img_array = np.expand_dims(img_array, axis=0)
         img_array /= 255.0
 
@@ -653,7 +650,7 @@ def predict_class(img):
         st.error(f"Error during plant prediction: {str(e)}")
         st.session_state['loading'] = False
         return None, None
-        
+
 def preprocess_image(img, target_size=(224, 224), brightness=1.0, contrast=1.0):
     img = img.convert("RGB")
     img_cv = np.array(img)
@@ -677,28 +674,37 @@ def predict_disease(model, img_tensor, class_names, threshold=0.9):
         return class_names[pred_class], confidence * 100
 
 def estimate_severity(confidence):
-    if confidence > 90: return "Mild"
-    elif confidence > 70: return "Moderate"
-    else: return "Severe"
+    if confidence > 90:
+        return "Mild"
+    elif confidence > 70:
+        return "Moderate"
+    else:
+        return "Severe"
 
 def detect_species(disease_name):
     return disease_name.split("___")[0]
 
 def generate_heatmap(model, img_tensor, pred_class):
-    target_layers = [model.layer4[-1]]
-    cam = GradCAM(model=model, target_layers=target_layers)
-    targets = [ClassifierOutputTarget(pred_class)]
-    grayscale_cam = cam(input_tensor=img_tensor, targets=targets)[0, :]
+    cam_extractor = GradCAM(model, target_layer="layer4[-1]")
+    with torch.no_grad():
+        out = model(img_tensor)
+    cam = cam_extractor(class_idx=pred_class, scores=out)
+    heatmap = cam[0].cpu().numpy()
+    heatmap = np.maximum(heatmap, 0) / heatmap.max()
     img = img_tensor.squeeze().permute(1, 2, 0).cpu().numpy()
     img = (img - img.min()) / (img.max() - img.min())
-    heatmap = show_cam_on_image(img, grayscale_cam, use_rgb=True)
-    return heatmap
+    heatmap_colored = cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
+    heatmap_colored = np.float32(heatmap_colored) / 255
+    superimposed_img = heatmap_colored * 0.4 + img
+    superimposed_img = np.clip(superimposed_img, 0, 1)
+    return superimposed_img
 
-# --- API Setup ---
+# --- API Setup (Optional) ---
 app = FastAPI()
 
 @app.post("/predict_disease")
 async def predict_api(file: UploadFile = File(...)):
+    global device
     img = Image.open(file.file)
     img_tensor = preprocess_image(img).to(device)
     disease, confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names)
@@ -710,7 +716,7 @@ def run_api():
 # --- Main App ---
 def main():
     load_css()
-    
+
     # Header
     st.markdown("""
         <div class="header-container">
@@ -728,7 +734,7 @@ def main():
             </div>
         </div>
     """, unsafe_allow_html=True)
-    
+
     # Team Section
     st.markdown("""
     <div class="team-section">
@@ -787,7 +793,6 @@ def main():
     if uploaded_file:
         try:
             img = Image.open(uploaded_file)
-            # Make sure the file position is reset before displaying
             uploaded_file.seek(0)
             st.image(img, caption="Uploaded Image", use_container_width=True)
         except Exception as e:
@@ -803,9 +808,9 @@ def main():
                         <div class="loading-text">Analyzing plant image...</div>
                     </div>
                 """, unsafe_allow_html=True)
-            
+
             predicted_class, confidence = predict_class(uploaded_file)
-            
+
             if predicted_class and not st.session_state['loading']:
                 st.markdown(f"""
                     <div class="prediction-container">
@@ -838,10 +843,10 @@ def main():
 
         with tab2:
             st.subheader("Disease Detection Results")
-            translator = Translator()
+            translator = LibreTranslateAPI("https://libretranslate.de/")
             languages = {"English": "en", "Spanish": "es", "French": "fr"}
             lang = st.sidebar.selectbox("Select Language", list(languages.keys()))
-            
+
             with st.sidebar.expander("How to Use"):
                 st.write("Adjust settings for disease detection.")
 
@@ -857,10 +862,15 @@ def main():
                 disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
                 species = detect_species(disease)
                 severity = estimate_severity(disease_confidence)
-                
-                disease_trans = translator.translate(disease.replace("___", " - "), dest=languages[lang]).text
-                species_trans = translator.translate(species, dest=languages[lang]).text
-                
+
+                try:
+                    disease_trans = translator.translate(disease.replace("___", " - "), source="en", target=languages[lang])
+                    species_trans = translator.translate(species, source="en", target=languages[lang])
+                except Exception as e:
+                    st.warning(f"Translation failed: {str(e)}. Displaying in English.")
+                    disease_trans = disease.replace("___", " - ")
+                    species_trans = species
+
                 st.write(f"**Species:** {species_trans}")
                 st.write(f"**Disease:** {disease_trans}")
                 st.write(f"**Confidence:** {disease_confidence:.2f}%")
@@ -902,7 +912,7 @@ def main():
         </div>
     """, unsafe_allow_html=True)
 
-# Start API in background
+# Start API in background (optional)
 threading.Thread(target=run_api, daemon=True).start()
 
 if __name__ == "__main__":
