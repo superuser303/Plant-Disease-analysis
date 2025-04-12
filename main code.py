@@ -952,13 +952,13 @@ def main():
                         disease_trans = disease.replace("___", " - ")
                         species_trans = species
                         st.info("Translation service unavailable. Displaying in English.")
-                    except Exception as e:
-                        st.warning(f"Translation failed: {str(e)}. Displaying in English.")
-                        disease_trans = disease.replace("___", " - ")
-                        species_trans = species
-                else:
-                    disease_trans = disease.replace("___", " - ")
-                    species_trans = species
+            except Exception as e:
+                st.warning(f"Translation failed: {str(e)}. Displaying in English.")
+                disease_trans = disease.replace("___", " - ")
+                species_trans = species
+            else:
+                disease_trans = disease.replace("___", " - ")
+                species_trans = species
 
                 fig, ax = plt.subplots()
                 ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
