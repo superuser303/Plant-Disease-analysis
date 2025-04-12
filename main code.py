@@ -35,7 +35,9 @@ if 'prediction_made' not in st.session_state:
     st.session_state['prediction_made'] = False
 if 'loading' not in st.session_state:
     st.session_state['loading'] = False
-
+if 'translator' not in st.session_state:
+    st.session_state['translator'] = None
+    
 # --- Page Configuration ---
 st.set_page_config(
     page_title="MediPlant AI | Plant Identification & Disease Detection",
@@ -750,6 +752,30 @@ async def predict_api(file: UploadFile = File(...)):
 
 def run_api():
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    
+def get_working_translator():
+    endpoints = [
+        "https://libretranslate.de/",
+        "https://translate.argosopentech.com/",
+        "https://translate.terraprint.co/",
+        "https://lt.vern.cc/"
+    ]
+    
+    for endpoint in endpoints:
+        try:
+            st.write(f"Attempting to connect to {endpoint}...")
+            translator = LibreTranslateAPI(endpoint)
+            # Test with a simple translation
+            test_result = translator.translate("test", source="en", target="es")
+            if test_result:
+                st.success(f"✅ Connected to translation service at {endpoint}")
+                return translator
+        except Exception as e:
+            st.write(f"❌ Failed to connect to {endpoint}: {str(e)}")
+            continue
+    
+    st.warning("Could not connect to any translation service. Displaying in English only.")
+    return None
 
 # --- Main App ---
 def main():
@@ -880,43 +906,76 @@ def main():
                 st.markdown("</div>", unsafe_allow_html=True)
 
         with tab2:
-            st.subheader("Disease Detection Results")
-            translator = LibreTranslateAPI("https://libretranslate.de/")
-            languages = {"English": "en", "Spanish": "es", "French": "fr"}
-            lang = st.sidebar.selectbox("Select Language", list(languages.keys()))
+    st.subheader("Disease Detection Results")
+    
+    # Move language selection to sidebar
+    languages = {"English": "en", "Spanish": "es", "French": "fr"}
+    with st.sidebar:
+        lang = st.selectbox("Select Language", list(languages.keys()))
+        st.write("Note: Translation requires internet connectivity")
+        
+        # Add a button to test translation services
+        if st.button("Test Translation Services"):
+            translator = get_working_translator()
+            if translator:
+                st.session_state['translator'] = translator
+            else:
+                st.session_state['translator'] = None
+    
+    with st.sidebar.expander("How to Use"):
+        st.write("Adjust settings for disease detection.")
 
-            with st.sidebar.expander("How to Use"):
-                st.write("Adjust settings for disease detection.")
+    confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
+    brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
+    contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
 
-            confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
-            brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
-            contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
+    global device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
 
-            global device
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
+    with st.spinner("Analyzing..."):
+        disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
+        species = detect_species(disease)
+        severity = estimate_severity(disease_confidence)
 
-            with st.spinner("Analyzing..."):
-                disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
-                species = detect_species(disease)
-                severity = estimate_severity(disease_confidence)
-
-                try:
+        # Translation part
+        if lang != "English":
+            try:
+                # Check if we already have a working translator in session state
+                if 'translator' not in st.session_state or st.session_state['translator'] is None:
+                    translator = get_working_translator()
+                    st.session_state['translator'] = translator
+                else:
+                    translator = st.session_state['translator']
+                
+                # Attempt translation if we have a translator
+                if translator:
                     disease_trans = translator.translate(disease.replace("___", " - "), source="en", target=languages[lang])
                     species_trans = translator.translate(species, source="en", target=languages[lang])
-                except Exception as e:
-                    st.warning(f"Translation failed: {str(e)}. Displaying in English.")
+                else:
                     disease_trans = disease.replace("___", " - ")
                     species_trans = species
+                    st.info("Translation service unavailable. Displaying in English.")
+            except Exception as e:
+                st.warning(f"Translation failed: {str(e)}. Displaying in English.")
+                disease_trans = disease.replace("___", " - ")
+                species_trans = species
+        else:
+            disease_trans = disease.replace("___", " - ")
+            species_trans = species
 
-                st.write(f"**Species:** {species_trans}")
-                st.write(f"**Disease:** {disease_trans}")
-                st.write(f"**Confidence:** {disease_confidence:.2f}%")
-                st.write(f"**Severity:** {severity}")
-                if disease in disease_info:
-                    st.write(f"**Description:** {disease_info[disease]['desc']}")
-                    st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
+        # Display results
+        st.write(f"**Species:** {species_trans}")
+        st.write(f"**Disease:** {disease_trans}")
+        st.write(f"**Confidence:** {disease_confidence:.2f}%")
+        st.write(f"**Severity:** {severity}")
+        
+        # Rest of your display code remains the same
+        if disease in disease_info:
+            st.write(f"**Description:** {disease_info[disease]['desc']}")
+            st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
 
+        # Continue with existing code...
                 heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
                 st.image(heatmap, caption="Heatmap", width=200)
 
