@@ -906,46 +906,46 @@ def main():
                 st.markdown("</div>", unsafe_allow_html=True)
                 
         with tab2:
-            st.subheader("Disease Detection Results")
+    st.subheader("Disease Detection Results")
         # Move language selection to sidebar
-            languages = {"English": "en", "Spanish": "es", "French": "fr"}
-            with st.sidebar:
-            lang = st.selectbox("Select Language", list(languages.keys()))
-            st.write("Note: Translation requires internet connectivity")
+    languages = {"English": "en", "Spanish": "es", "French": "fr"}
+    with st.sidebar:
+        lang = st.selectbox("Select Language", list(languages.keys()))
+        st.write("Note: Translation requires internet connectivity")
             
             # Add a button to test translation services
-            if st.button("Test Translation Services"):
-                translator = get_working_translator()
-                if translator:
+        if st.button("Test Translation Services"):
+            translator = get_working_translator()
+            if translator:
+                st.session_state['translator'] = translator
+            else:
+                st.session_state['translator'] = None
+        
+    with st.sidebar.expander("How to Use"):
+        st.write("Adjust settings for disease detection.")
+    
+    confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
+    brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
+    contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
+    
+    global device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
+    
+    with st.spinner("Analyzing..."):
+        disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
+        species = detect_species(disease)
+        severity = estimate_severity(disease_confidence)
+    
+        # Translation part
+        if lang != "English":
+            try:
+                # Check if we already have a working translator in session state
+                if 'translator' not in st.session_state or st.session_state['translator'] is None:
+                    translator = get_working_translator()
                     st.session_state['translator'] = translator
                 else:
-                    st.session_state['translator'] = None
-        
-        with st.sidebar.expander("How to Use"):
-            st.write("Adjust settings for disease detection.")
-    
-        confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
-        brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
-        contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
-    
-        global device
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
-    
-        with st.spinner("Analyzing..."):
-            disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
-            species = detect_species(disease)
-            severity = estimate_severity(disease_confidence)
-    
-            # Translation part
-            if lang != "English":
-                try:
-                    # Check if we already have a working translator in session state
-                    if 'translator' not in st.session_state or st.session_state['translator'] is None:
-                        translator = get_working_translator()
-                        st.session_state['translator'] = translator
-                    else:
-                        translator = st.session_state['translator']
+                    translator = st.session_state['translator']
                     
                     # Attempt translation if we have a translator
                     if translator:
