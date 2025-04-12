@@ -923,7 +923,7 @@ def main():
                 st.image(heatmap, caption="Heatmap", width=200)
        
                 with st.sidebar.expander("How to Use"):
-                st.write("Adjust settings for disease detection.")
+                    st.write("Adjust settings for disease detection.")
     
                 confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
                 brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
