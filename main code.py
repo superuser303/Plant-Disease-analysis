@@ -904,12 +904,12 @@ def main():
                 else:
                     st.markdown(f"• {uses}")
                 st.markdown("</div>", unsafe_allow_html=True)
+                
         with tab2:
             st.subheader("Disease Detection Results")
-    
         # Move language selection to sidebar
-        languages = {"English": "en", "Spanish": "es", "French": "fr"}
-        with st.sidebar:
+            languages = {"English": "en", "Spanish": "es", "French": "fr"}
+            with st.sidebar:
             lang = st.selectbox("Select Language", list(languages.keys()))
             st.write("Note: Translation requires internet connectivity")
             
@@ -970,9 +970,9 @@ def main():
             st.write(f"**Severity:** {severity}")
         
         # Rest of your display code remains the same
-        if disease in disease_info:
-            st.write(f"**Description:** {disease_info[disease]['desc']}")
-            st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
+            if disease in disease_info:
+                st.write(f"**Description:** {disease_info[disease]['desc']}")
+                st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
         
         # Continue with existing code...
             heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
