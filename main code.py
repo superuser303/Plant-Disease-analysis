@@ -864,10 +864,31 @@ def main():
             st.warning("Please try uploading a different image file.")
 
         # Tab 1: Plant Identification
+         # Tabs for Results
+    tab1, tab2 = st.tabs(["Plant Identification", "Disease Detection"])
+
+    if uploaded_file:
+        try:
+            img = Image.open(uploaded_file)
+            uploaded_file.seek(0)
+            st.image(img, caption="Uploaded Image", use_container_width=True)
+        except Exception as e:
+            st.error(f"Error displaying image: {str(e)}")
+            st.warning("Please try uploading a different image file.")
+
         with tab1:
             st.subheader("Plant Identification Results")
+            if st.session_state['loading']:
+                st.markdown("""
+                    <div class="loading-container">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Analyzing plant image...</div>
+                    </div>
+                """, unsafe_allow_html=True)
+
             predicted_class, confidence = predict_class(uploaded_file)
-            if predicted_class:
+
+            if predicted_class and not st.session_state['loading']:
                 st.markdown(f"""
                     <div class="prediction-container">
                         <h2 style="color: #064e3b; margin-bottom: 0.5rem;">
@@ -897,12 +918,21 @@ def main():
                     st.markdown(f"• {uses}")
                 st.markdown("</div>", unsafe_allow_html=True)
 
-        # Tab 2: Disease Detection
         with tab2:
             st.subheader("Disease Detection Results")
+            translator = LibreTranslateAPI("https://libretranslate.de/")
+            languages = {"English": "en", "Spanish": "es", "French": "fr"}
+            lang = st.sidebar.selectbox("Select Language", list(languages.keys()))
+
+            with st.sidebar.expander("How to Use"):
+                st.write("Adjust settings for disease detection.")
+
             confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
             brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
             contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
+
+            global device
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
 
             with st.spinner("Analyzing..."):
@@ -910,55 +940,24 @@ def main():
                 species = detect_species(disease)
                 severity = estimate_severity(disease_confidence)
 
-                st.write(f"**Species:** {species}")
-                st.write(f"**Disease:** {disease}")
+                try:
+                    disease_trans = translator.translate(disease.replace("___", " - "), source="en", target=languages[lang])
+                    species_trans = translator.translate(species, source="en", target=languages[lang])
+                except Exception as e:
+                    st.warning(f"Translation failed: {str(e)}. Displaying in English.")
+                    disease_trans = disease.replace("___", " - ")
+                    species_trans = species
+
+                st.write(f"**Species:** {species_trans}")
+                st.write(f"**Disease:** {disease_trans}")
                 st.write(f"**Confidence:** {disease_confidence:.2f}%")
                 st.write(f"**Severity:** {severity}")
-
                 if disease in disease_info:
                     st.write(f"**Description:** {disease_info[disease]['desc']}")
                     st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
 
                 heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
                 st.image(heatmap, caption="Heatmap", width=200)
-       
-                with st.sidebar.expander("How to Use"):
-                    st.write("Adjust settings for disease detection.")
-    
-                confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
-                brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
-                contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
-    
-                global device
-                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
-    
-   
-        # Translation part
-        if lang != "English":
-            try:
-                # Check if we already have a working translator in session state
-                if 'translator' not in st.session_state or st.session_state['translator'] is None:
-                    translator = get_working_translator()
-                    st.session_state['translator'] = translator
-                else:
-                    translator = st.session_state['translator']
-                    
-                    # Attempt translation if we have a translator
-                    if translator:
-                        disease_trans = translator.translate(disease.replace("___", " - "), source="en", target=languages[lang])
-                        species_trans = translator.translate(species, source="en", target=languages[lang])
-                    else:
-                        disease_trans = disease.replace("___", " - ")
-                        species_trans = species
-                        st.info("Translation service unavailable. Displaying in English.")
-            except Exception as e:
-                st.warning(f"Translation failed: {str(e)}. Displaying in English.")
-                disease_trans = disease.replace("___", " - ")
-                species_trans = species
-            else:
-                disease_trans = disease.replace("___", " - ")
-                species_trans = species
 
                 fig, ax = plt.subplots()
                 ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
@@ -969,7 +968,9 @@ def main():
                 if feedback == "No":
                     with open("feedback.txt", "a") as f:
                         f.write(f"{disease},{disease_confidence}\n")
-
+    
+   
+        
     # About Section
     st.markdown("""
         <div class="glass-card">
