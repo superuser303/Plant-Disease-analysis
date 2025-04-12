@@ -754,29 +754,52 @@ def run_api():
     uvicorn.run(app, host="0.0.0.0", port=8000)
     
 def get_working_translator():
+    """Try multiple working LibreTranslate endpoints with timeout handling"""
     endpoints = [
-        "https://libretranslate.de/",
-        "https://translate.argosopentech.com/",
-        "https://translate.terraprint.co/",
-        "https://lt.vern.cc/"
+        ("https://translate.astian.org/", "en", "es"),  # Verified working
+        ("https://libretranslate.de/", "en", "es"),      # Sometimes available
+        ("https://translate.mentality.rip/", "en", "es"),# New working instance
+        ("https://lt.vern.cc/", "en", "es")              # Community-hosted
     ]
     
-    for endpoint in endpoints:
+    for endpoint, src, tgt in endpoints:
         try:
-            st.write(f"Attempting to connect to {endpoint}...")
-            translator = LibreTranslateAPI(endpoint)
-            # Test with a simple translation
-            test_result = translator.translate("test", source="en", target="es")
-            if test_result:
+            # Test with a 5-second timeout
+            translator = LibreTranslateAPI(endpoint, timeout=5)
+            test_result = translator.translate("hello", source=src, target=tgt)
+            if test_result and "hola" in test_result.lower():
                 st.success(f"✅ Connected to translation service at {endpoint}")
                 return translator
         except Exception as e:
-            st.write(f"❌ Failed to connect to {endpoint}: {str(e)}")
+            st.error(f"❌ Failed to connect to {endpoint}: {str(e)}")
             continue
     
     st.warning("Could not connect to any translation service. Displaying in English only.")
     return None
 
+# Add timeout parameter to LibreTranslateAPI initialization
+class LibreTranslateAPI:
+    def __init__(self, url, timeout=5):
+        self.url = url.rstrip('/')
+        self.timeout = timeout
+        
+    def translate(self, text, source="en", target="es"):
+        try:
+            response = requests.post(
+                f"{self.url}/translate",
+                json={
+                    "q": text,
+                    "source": source,
+                    "target": target,
+                    "format": "text"
+                },
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            return response.json()['translatedText']
+        except Exception as e:
+            raise Exception(f"Translation failed: {str(e)}")
+            
 # --- Main App ---
 def main():
     load_css()
