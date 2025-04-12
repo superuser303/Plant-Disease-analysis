@@ -858,24 +858,16 @@ def main():
         try:
             img = Image.open(uploaded_file)
             uploaded_file.seek(0)
-            st.image(img, caption="Uploaded Image",  width=None)
+            st.image(img, caption="Uploaded Image", width=None)
         except Exception as e:
             st.error(f"Error displaying image: {str(e)}")
             st.warning("Please try uploading a different image file.")
 
+        # Tab 1: Plant Identification
         with tab1:
             st.subheader("Plant Identification Results")
-            if st.session_state['loading']:
-                st.markdown("""
-                    <div class="loading-container">
-                        <div class="loading-spinner"></div>
-                        <div class="loading-text">Analyzing plant image...</div>
-                    </div>
-                """, unsafe_allow_html=True)
-
             predicted_class, confidence = predict_class(uploaded_file)
-
-            if predicted_class and not st.session_state['loading']:
+            if predicted_class:
                 st.markdown(f"""
                     <div class="prediction-container">
                         <h2 style="color: #064e3b; margin-bottom: 0.5rem;">
@@ -904,39 +896,44 @@ def main():
                 else:
                     st.markdown(f"• {uses}")
                 st.markdown("</div>", unsafe_allow_html=True)
-                
+
+        # Tab 2: Disease Detection
         with tab2:
-    st.subheader("Disease Detection Results")
-        # Move language selection to sidebar
-    languages = {"English": "en", "Spanish": "es", "French": "fr"}
-    with st.sidebar:
-        lang = st.selectbox("Select Language", list(languages.keys()))
-        st.write("Note: Translation requires internet connectivity")
-            
-            # Add a button to test translation services
-        if st.button("Test Translation Services"):
-            translator = get_working_translator()
-            if translator:
-                st.session_state['translator'] = translator
-            else:
-                st.session_state['translator'] = None
-        
-    with st.sidebar.expander("How to Use"):
-        st.write("Adjust settings for disease detection.")
+            st.subheader("Disease Detection Results")
+            confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
+            brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
+            contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
+            img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
+
+            with st.spinner("Analyzing..."):
+                disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
+                species = detect_species(disease)
+                severity = estimate_severity(disease_confidence)
+
+                st.write(f"**Species:** {species}")
+                st.write(f"**Disease:** {disease}")
+                st.write(f"**Confidence:** {disease_confidence:.2f}%")
+                st.write(f"**Severity:** {severity}")
+
+                if disease in disease_info:
+                    st.write(f"**Description:** {disease_info[disease]['desc']}")
+                    st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
+
+                heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
+                st.image(heatmap, caption="Heatmap", width=200)
+       
+                with st.sidebar.expander("How to Use"):
+                st.write("Adjust settings for disease detection.")
     
-    confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
-    brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
-    contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
+                confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
+                brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
+                contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
     
-    global device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
+                global device
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
     
-    with st.spinner("Analyzing..."):
-        disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
-        species = detect_species(disease)
-        severity = estimate_severity(disease_confidence)
-    
+   
         # Translation part
         if lang != "English":
             try:
@@ -962,21 +959,6 @@ def main():
             else:
                 disease_trans = disease.replace("___", " - ")
                 species_trans = species
-    
-            # Display results
-            st.write(f"**Species:** {species_trans}")
-            st.write(f"**Disease:** {disease_trans}")
-            st.write(f"**Confidence:** {disease_confidence:.2f}%")
-            st.write(f"**Severity:** {severity}")
-        
-        # Rest of your display code remains the same
-            if disease in disease_info:
-                st.write(f"**Description:** {disease_info[disease]['desc']}")
-                st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
-        
-        # Continue with existing code...
-            heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
-            st.image(heatmap, caption="Heatmap", width=200)
 
             fig, ax = plt.subplots()
             ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
