@@ -952,23 +952,23 @@ def main():
                         disease_trans = disease.replace("___", " - ")
                         species_trans = species
                         st.info("Translation service unavailable. Displaying in English.")
-                except Exception as e:
-                    st.warning(f"Translation failed: {str(e)}. Displaying in English.")
+                    except Exception as e:
+                        st.warning(f"Translation failed: {str(e)}. Displaying in English.")
+                        disease_trans = disease.replace("___", " - ")
+                        species_trans = species
+                else:
                     disease_trans = disease.replace("___", " - ")
                     species_trans = species
-            else:
-                disease_trans = disease.replace("___", " - ")
-                species_trans = species
 
-            fig, ax = plt.subplots()
-            ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
-            plt.xticks(rotation=90)
-            st.pyplot(fig)
+                fig, ax = plt.subplots()
+                ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
+                plt.xticks(rotation=90)
+                st.pyplot(fig)
 
-            feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
-            if feedback == "No":
-                with open("feedback.txt", "a") as f:
-                    f.write(f"{disease},{disease_confidence}\n")
+                feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
+                if feedback == "No":
+                    with open("feedback.txt", "a") as f:
+                        f.write(f"{disease},{disease_confidence}\n")
 
     # About Section
     st.markdown("""
