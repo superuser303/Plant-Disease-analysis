@@ -35,10 +35,8 @@ if 'prediction_made' not in st.session_state:
     st.session_state['prediction_made'] = False
 if 'loading' not in st.session_state:
     st.session_state['loading'] = False
-if 'messages' not in st.session_state:
-    st.session_state['messages'] = [
-        {"role": "assistant", "content": "Hello! I'm MediPlant Assistant. Upload a plant image or ask me about medicinal plants and diseases!"}
-    ]
+if 'translator' not in st.session_state:
+    st.session_state['translator'] = None
     
 # --- Page Configuration ---
 st.set_page_config(
@@ -601,49 +599,18 @@ def load_css():
     """, unsafe_allow_html=True)
 
 # --- Model Loading Functions ---
-# --- Model Loading Functions ---
 @st.cache_resource
 def load_prediction_model():
     try:
+        download_url = "https://drive.google.com/uc?id=17xebXPPkKbQYJjAE0qyxikUjoUY6BNoz"
         model_path = "Medicinal_Plant.h5"
-        # Check if the model already exists locally
-        if not os.path.exists(model_path):
-            download_url = "https://drive.google.com/uc?id=17xebXPPkKbQYJjAE0qyxikUjoUY6BNoz"
-            gdown.download(download_url, model_path, quiet=False)
-        
-        # Load the model
-        model = load_model(model_path)
-        print("Plant model loaded successfully!")
+        gdown.download(download_url, model_path, quiet=False)
+        model = tf.keras.models.load_model(model_path)
         return model
     except Exception as e:
         st.error(f"Error loading plant model: {str(e)}")
         return None
 
-@st.cache_resource
-def load_disease_model():
-    try:
-        model_path = "plant_model.pth"
-        # Check if the model already exists locally
-        if not os.path.exists(model_path):
-            download_url = "https://drive.google.com/uc?id=1eaScRp1Oz3nzNeJeRqi78UEqWdEhbBoo"
-            gdown.download(download_url, model_path, quiet=False)
-        
-        # Initialize the model
-        model = resnet50(pretrained=False)
-        model.fc = torch.nn.Linear(model.fc.in_features, 38)
-        
-        # Load the weights
-        state_dict = torch.load(model_path, map_location='cpu')
-        model.load_state_dict(state_dict)
-        model.eval()
-        
-        # Move to appropriate device
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print("Disease model loaded successfully!")
-        return model.to(device)
-    except Exception as e:
-        st.error(f"Error loading disease model: {str(e)}")
-        return None
 @st.cache_resource
 def load_trained_model():
     try:
@@ -786,6 +753,30 @@ async def predict_api(file: UploadFile = File(...)):
 def run_api():
     uvicorn.run(app, host="0.0.0.0", port=8000)
     
+def get_working_translator():
+    endpoints = [
+        "https://libretranslate.de/",
+        "https://translate.argosopentech.com/",
+        "https://translate.terraprint.co/",
+        "https://lt.vern.cc/"
+    ]
+    
+    for endpoint in endpoints:
+        try:
+            st.write(f"Attempting to connect to {endpoint}...")
+            translator = LibreTranslateAPI(endpoint)
+            # Test with a simple translation
+            test_result = translator.translate("test", source="en", target="es")
+            if test_result:
+                st.success(f"✅ Connected to translation service at {endpoint}")
+                return translator
+        except Exception as e:
+            st.write(f"❌ Failed to connect to {endpoint}: {str(e)}")
+            continue
+    
+    st.warning("Could not connect to any translation service. Displaying in English only.")
+    return None
+
 # --- Main App ---
 def main():
     load_css()
@@ -860,58 +851,6 @@ def main():
         key="combined_uploader"
     )
 
-    def generate_response(prompt, plant_info=None, disease_info=None):
-        """
-        Generate a response based on user input and any detected plant/disease info
-        """
-        # Simple response rules
-        prompt = prompt.lower()
-            
-        # If we have plant info, use it for better responses
-        if plant_info:
-            plant_name = plant_info
-                
-            if "use" in prompt or "benefit" in prompt or "medicinal" in prompt:
-                if plant_name in use_of_medicine:
-                    uses = use_of_medicine[plant_name]
-                    return f"Here are the medicinal uses of {plant_name}:\n" + "\n".join([f"• {use}" for use in uses])
-                else:
-                    return f"I don't have specific medicinal use information for {plant_name}."
-                        
-            elif "prepare" in prompt or "method" in prompt or "how to use" in prompt:
-                if plant_name in methods_of_preparation:
-                    return f"Method of preparation for {plant_name}:\n{methods_of_preparation[plant_name]}"
-                else:
-                    return f"I don't have preparation method information for {plant_name}."
-            
-        # If we have disease info, use it for better responses
-        if disease_info and "Unknown" not in disease_info:
-            disease_name = disease_info
-                
-            if "treat" in prompt or "cure" in prompt or "remedy" in prompt:
-                if disease_name in disease_info:
-                    return f"Remedy for {disease_name.replace('___', ' ')}:\n{disease_info[disease_name]['remedy']}"
-                else:
-                    return f"I don't have remedy information for {disease_name.replace('___', ' ')}."
-                        
-            elif "what is" in prompt or "about" in prompt or "describe" in prompt:
-                if disease_name in disease_info:
-                    return f"About {disease_name.replace('___', ' ')}:\n{disease_info[disease_name]['desc']}"
-                else:
-                    return f"I don't have description information for {disease_name.replace('___', ' ')}."
-            
-        # Generic responses for common plant/disease questions
-        if "common diseases" in prompt:
-            return "Common plant diseases include powdery mildew, leaf spot, blight, rust, and various viral infections. Upload an image to detect specific diseases!"
-            
-        elif "tips" in prompt and "plant" in prompt:
-            return "Here are some general plant care tips:\n• Ensure proper watering - not too much, not too little\n• Provide adequate sunlight based on plant type\n• Use appropriate soil and fertilizer\n• Monitor for pests and diseases regularly"
-            
-        elif "medicinal plants" in prompt:
-            return "Some popular medicinal plants include Aloe Vera, Tulsi (Holy Basil), Neem, Ashwagandha, Mint, and Turmeric. Upload an image to identify specific plants!"
-            
-        # Fallback response
-        return "I'm your MediPlant Assistant! I can help identify plants, detect diseases, and provide information about medicinal uses. Upload an image or ask me a specific question about plants or diseases."
     # Tabs for Results
     tab1, tab2 = st.tabs(["Plant Identification", "Disease Detection"])
 
@@ -965,49 +904,89 @@ def main():
                 else:
                     st.markdown(f"• {uses}")
                 st.markdown("</div>", unsafe_allow_html=True)
-        
         with tab2:
-            st.subheader("Plant Assistant Chatbot")
+            st.subheader("Disease Detection Results")
     
-        # Get any prediction results to inform the chatbot
-        predicted_plant = None
-        if 'prediction_made' in st.session_state and st.session_state['prediction_made']:
-            predicted_plant = predicted_class
-    
-        # Initialize disease variable with None to avoid reference error
-        disease = None
-        detected_disease = None
-    
-        # Only try to get disease information if we have uploaded a file
-        if uploaded_file and st.session_state['model_disease'] is not None:
-            try:
-                # Process image for disease detection
-                img = Image.open(uploaded_file)
-                img_tensor = preprocess_image(img).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
-                disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names)
+        # Move language selection to sidebar
+        languages = {"English": "en", "Spanish": "es", "French": "fr"}
+        with st.sidebar:
+            lang = st.selectbox("Select Language", list(languages.keys()))
+            st.write("Note: Translation requires internet connectivity")
             
-                if disease and 'Unknown' not in disease:
-                    detected_disease = disease
-            except Exception as e:
-                st.error(f"Error analyzing disease: {str(e)}")
+            # Add a button to test translation services
+            if st.button("Test Translation Services"):
+                translator = get_working_translator()
+                if translator:
+                    st.session_state['translator'] = translator
+                else:
+                    st.session_state['translator'] = None
+        
+        with st.sidebar.expander("How to Use"):
+            st.write("Adjust settings for disease detection.")
     
-        # Display chat messages
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])            
+        confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
+        brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
+        contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
+    
+        global device
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
+    
+        with st.spinner("Analyzing..."):
+            disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
+            species = detect_species(disease)
+            severity = estimate_severity(disease_confidence)
+    
+            # Translation part
+            if lang != "English":
+                try:
+                    # Check if we already have a working translator in session state
+                    if 'translator' not in st.session_state or st.session_state['translator'] is None:
+                        translator = get_working_translator()
+                        st.session_state['translator'] = translator
+                    else:
+                        translator = st.session_state['translator']
+                    
+                    # Attempt translation if we have a translator
+                    if translator:
+                        disease_trans = translator.translate(disease.replace("___", " - "), source="en", target=languages[lang])
+                        species_trans = translator.translate(species, source="en", target=languages[lang])
+                    else:
+                        disease_trans = disease.replace("___", " - ")
+                        species_trans = species
+                        st.info("Translation service unavailable. Displaying in English.")
+                except Exception as e:
+                    st.warning(f"Translation failed: {str(e)}. Displaying in English.")
+                    disease_trans = disease.replace("___", " - ")
+                    species_trans = species
+            else:
+                disease_trans = disease.replace("___", " - ")
+                species_trans = species
+    
+            # Display results
+            st.write(f"**Species:** {species_trans}")
+            st.write(f"**Disease:** {disease_trans}")
+            st.write(f"**Confidence:** {disease_confidence:.2f}%")
+            st.write(f"**Severity:** {severity}")
+        
+        # Rest of your display code remains the same
+        if disease in disease_info:
+            st.write(f"**Description:** {disease_info[disease]['desc']}")
+            st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
+        
         # Continue with existing code...
-        heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
-        st.image(heatmap, caption="Heatmap", width=200)
-    
-        fig, ax = plt.subplots()
-        ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
-        plt.xticks(rotation=90)
-        st.pyplot(fig)
-    
-        feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
-        if feedback == "No":
-            with open("feedback.txt", "a") as f:
-                f.write(f"{disease},{disease_confidence}\n")
+            heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
+            st.image(heatmap, caption="Heatmap", width=200)
+
+            fig, ax = plt.subplots()
+            ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
+            plt.xticks(rotation=90)
+            st.pyplot(fig)
+
+            feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
+            if feedback == "No":
+                with open("feedback.txt", "a") as f:
+                    f.write(f"{disease},{disease_confidence}\n")
 
     # About Section
     st.markdown("""
