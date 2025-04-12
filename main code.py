@@ -858,7 +858,7 @@ def main():
         try:
             img = Image.open(uploaded_file)
             uploaded_file.seek(0)
-            st.image(img, caption="Uploaded Image", width=none)
+            st.image(img, caption="Uploaded Image", width=None)
         except Exception as e:
             st.error(f"Error displaying image: {str(e)}")
             st.warning("Please try uploading a different image file.")
