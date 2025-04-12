@@ -907,57 +907,76 @@ def main():
 
         with tab2:
             st.subheader("Disease Detection Results")
-            translator = LibreTranslateAPI("https://libretranslate.de/")
-            languages = {"English": "en", "Spanish": "es", "French": "fr"}
+            
+            # Use the get_working_translator function instead of directly initializing
+            if 'translator' not in st.session_state or st.session_state['translator'] is None:
+                st.session_state['translator'] = get_working_translator()
+                
+            translator = st.session_state['translator']
+            languages = {"English": "en", "Spanish": "es", "French": "fr", "German": "de", "Italian": "it"}
             lang = st.sidebar.selectbox("Select Language", list(languages.keys()))
-
+        
             with st.sidebar.expander("How to Use"):
                 st.write("Adjust settings for disease detection.")
-
+        
             confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
             brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
             contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
-
+        
             global device
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
-
+        
             with st.spinner("Analyzing..."):
                 disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
                 species = detect_species(disease)
                 severity = estimate_severity(disease_confidence)
-
-                try:
-                    disease_trans = translator.translate(disease.replace("___", " - "), source="en", target=languages[lang])
-                    species_trans = translator.translate(species, source="en", target=languages[lang])
-                except Exception as e:
-                    st.warning(f"Translation failed: {str(e)}. Displaying in English.")
-                    disease_trans = disease.replace("___", " - ")
-                    species_trans = species
-
+        
+                # Safer translation with fallback
+                disease_trans = disease.replace("___", " - ")
+                species_trans = species
+                
+                if translator and lang != "English":
+                    try:
+                        disease_trans = translator.translate(disease.replace("___", " - "), source="en", target=languages[lang])
+                        species_trans = translator.translate(species, source="en", target=languages[lang])
+                    except Exception as e:
+                        st.warning(f"Translation to {lang} failed: {str(e)}. Displaying in English.")
+                
                 st.write(f"**Species:** {species_trans}")
                 st.write(f"**Disease:** {disease_trans}")
                 st.write(f"**Confidence:** {disease_confidence:.2f}%")
                 st.write(f"**Severity:** {severity}")
+                
                 if disease in disease_info:
-                    st.write(f"**Description:** {disease_info[disease]['desc']}")
-                    st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
-
+                    description = disease_info[disease]['desc']
+                    remedy = disease_info[disease]['remedy']
+                    
+                    # Try to translate description and remedy if translator is available
+                    if translator and lang != "English":
+                        try:
+                            description = translator.translate(description, source="en", target=languages[lang])
+                            remedy = translator.translate(remedy, source="en", target=languages[lang])
+                        except Exception:
+                            pass  # Fall back to English if translation fails
+                            
+                    st.write(f"**Description:** {description}")
+                    st.write(f"**Remedy:** {remedy}")
+        
+                # Rest of your visualization code remains the same
                 heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
                 st.image(heatmap, caption="Heatmap", width=200)
-
+        
                 fig, ax = plt.subplots()
                 ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
                 plt.xticks(rotation=90)
                 st.pyplot(fig)
-
+        
                 feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
                 if feedback == "No":
                     with open("feedback.txt", "a") as f:
                         f.write(f"{disease},{disease_confidence}\n")
-    
-   
-        
+                        
     # About Section
     st.markdown("""
         <div class="glass-card">
