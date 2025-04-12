@@ -860,58 +860,58 @@ def main():
         key="combined_uploader"
     )
 
-        def generate_response(prompt, plant_info=None, disease_info=None):
-            """
-            Generate a response based on user input and any detected plant/disease info
-            """
-            # Simple response rules
-            prompt = prompt.lower()
+    def generate_response(prompt, plant_info=None, disease_info=None):
+        """
+        Generate a response based on user input and any detected plant/disease info
+        """
+        # Simple response rules
+        prompt = prompt.lower()
             
-            # If we have plant info, use it for better responses
-            if plant_info:
-                plant_name = plant_info
+        # If we have plant info, use it for better responses
+        if plant_info:
+            plant_name = plant_info
                 
-                if "use" in prompt or "benefit" in prompt or "medicinal" in prompt:
-                    if plant_name in use_of_medicine:
-                        uses = use_of_medicine[plant_name]
-                        return f"Here are the medicinal uses of {plant_name}:\n" + "\n".join([f"• {use}" for use in uses])
-                    else:
-                        return f"I don't have specific medicinal use information for {plant_name}."
+            if "use" in prompt or "benefit" in prompt or "medicinal" in prompt:
+                if plant_name in use_of_medicine:
+                    uses = use_of_medicine[plant_name]
+                    return f"Here are the medicinal uses of {plant_name}:\n" + "\n".join([f"• {use}" for use in uses])
+                else:
+                    return f"I don't have specific medicinal use information for {plant_name}."
                         
-                elif "prepare" in prompt or "method" in prompt or "how to use" in prompt:
-                    if plant_name in methods_of_preparation:
-                        return f"Method of preparation for {plant_name}:\n{methods_of_preparation[plant_name]}"
-                    else:
-                        return f"I don't have preparation method information for {plant_name}."
+            elif "prepare" in prompt or "method" in prompt or "how to use" in prompt:
+                if plant_name in methods_of_preparation:
+                    return f"Method of preparation for {plant_name}:\n{methods_of_preparation[plant_name]}"
+                else:
+                    return f"I don't have preparation method information for {plant_name}."
             
-            # If we have disease info, use it for better responses
-            if disease_info and "Unknown" not in disease_info:
-                disease_name = disease_info
+        # If we have disease info, use it for better responses
+        if disease_info and "Unknown" not in disease_info:
+            disease_name = disease_info
                 
-                if "treat" in prompt or "cure" in prompt or "remedy" in prompt:
-                    if disease_name in disease_info:
-                        return f"Remedy for {disease_name.replace('___', ' ')}:\n{disease_info[disease_name]['remedy']}"
-                    else:
-                        return f"I don't have remedy information for {disease_name.replace('___', ' ')}."
+            if "treat" in prompt or "cure" in prompt or "remedy" in prompt:
+                if disease_name in disease_info:
+                    return f"Remedy for {disease_name.replace('___', ' ')}:\n{disease_info[disease_name]['remedy']}"
+                else:
+                    return f"I don't have remedy information for {disease_name.replace('___', ' ')}."
                         
-                elif "what is" in prompt or "about" in prompt or "describe" in prompt:
-                    if disease_name in disease_info:
-                        return f"About {disease_name.replace('___', ' ')}:\n{disease_info[disease_name]['desc']}"
-                    else:
-                        return f"I don't have description information for {disease_name.replace('___', ' ')}."
+            elif "what is" in prompt or "about" in prompt or "describe" in prompt:
+                if disease_name in disease_info:
+                    return f"About {disease_name.replace('___', ' ')}:\n{disease_info[disease_name]['desc']}"
+                else:
+                    return f"I don't have description information for {disease_name.replace('___', ' ')}."
             
-            # Generic responses for common plant/disease questions
-            if "common diseases" in prompt:
-                return "Common plant diseases include powdery mildew, leaf spot, blight, rust, and various viral infections. Upload an image to detect specific diseases!"
+        # Generic responses for common plant/disease questions
+        if "common diseases" in prompt:
+            return "Common plant diseases include powdery mildew, leaf spot, blight, rust, and various viral infections. Upload an image to detect specific diseases!"
             
-            elif "tips" in prompt and "plant" in prompt:
-                return "Here are some general plant care tips:\n• Ensure proper watering - not too much, not too little\n• Provide adequate sunlight based on plant type\n• Use appropriate soil and fertilizer\n• Monitor for pests and diseases regularly"
+        elif "tips" in prompt and "plant" in prompt:
+            return "Here are some general plant care tips:\n• Ensure proper watering - not too much, not too little\n• Provide adequate sunlight based on plant type\n• Use appropriate soil and fertilizer\n• Monitor for pests and diseases regularly"
             
-            elif "medicinal plants" in prompt:
-                return "Some popular medicinal plants include Aloe Vera, Tulsi (Holy Basil), Neem, Ashwagandha, Mint, and Turmeric. Upload an image to identify specific plants!"
+        elif "medicinal plants" in prompt:
+            return "Some popular medicinal plants include Aloe Vera, Tulsi (Holy Basil), Neem, Ashwagandha, Mint, and Turmeric. Upload an image to identify specific plants!"
             
-            # Fallback response
-            return "I'm your MediPlant Assistant! I can help identify plants, detect diseases, and provide information about medicinal uses. Upload an image or ask me a specific question about plants or diseases."
+        # Fallback response
+        return "I'm your MediPlant Assistant! I can help identify plants, detect diseases, and provide information about medicinal uses. Upload an image or ask me a specific question about plants or diseases."
     # Tabs for Results
     tab1, tab2 = st.tabs(["Plant Identification", "Disease Detection"])
 
