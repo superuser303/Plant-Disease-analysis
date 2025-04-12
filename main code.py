@@ -975,18 +975,18 @@ def main():
             st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
         
         # Continue with existing code...
-                heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
-                st.image(heatmap, caption="Heatmap", width=200)
+            heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
+            st.image(heatmap, caption="Heatmap", width=200)
 
-                fig, ax = plt.subplots()
-                ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
-                plt.xticks(rotation=90)
-                st.pyplot(fig)
+            fig, ax = plt.subplots()
+            ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
+            plt.xticks(rotation=90)
+            st.pyplot(fig)
 
-                feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
-                if feedback == "No":
-                    with open("feedback.txt", "a") as f:
-                        f.write(f"{disease},{disease_confidence}\n")
+            feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
+            if feedback == "No":
+                with open("feedback.txt", "a") as f:
+                    f.write(f"{disease},{disease_confidence}\n")
 
     # About Section
     st.markdown("""
