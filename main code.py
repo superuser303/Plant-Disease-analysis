@@ -601,18 +601,49 @@ def load_css():
     """, unsafe_allow_html=True)
 
 # --- Model Loading Functions ---
+# --- Model Loading Functions ---
 @st.cache_resource
 def load_prediction_model():
     try:
-        download_url = "https://drive.google.com/uc?id=17xebXPPkKbQYJjAE0qyxikUjoUY6BNoz"
         model_path = "Medicinal_Plant.h5"
-        gdown.download(download_url, model_path, quiet=False)
-        model = tf.keras.models.load_model(model_path)
+        # Check if the model already exists locally
+        if not os.path.exists(model_path):
+            download_url = "https://drive.google.com/uc?id=17xebXPPkKbQYJjAE0qyxikUjoUY6BNoz"
+            gdown.download(download_url, model_path, quiet=False)
+        
+        # Load the model
+        model = load_model(model_path)
+        print("Plant model loaded successfully!")
         return model
     except Exception as e:
         st.error(f"Error loading plant model: {str(e)}")
         return None
 
+@st.cache_resource
+def load_disease_model():
+    try:
+        model_path = "plant_model.pth"
+        # Check if the model already exists locally
+        if not os.path.exists(model_path):
+            download_url = "https://drive.google.com/uc?id=1eaScRp1Oz3nzNeJeRqi78UEqWdEhbBoo"
+            gdown.download(download_url, model_path, quiet=False)
+        
+        # Initialize the model
+        model = resnet50(pretrained=False)
+        model.fc = torch.nn.Linear(model.fc.in_features, 38)
+        
+        # Load the weights
+        state_dict = torch.load(model_path, map_location='cpu')
+        model.load_state_dict(state_dict)
+        model.eval()
+        
+        # Move to appropriate device
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print("Disease model loaded successfully!")
+        return model.to(device)
+    except Exception as e:
+        st.error(f"Error loading disease model: {str(e)}")
+        return None
 @st.cache_resource
 def load_trained_model():
     try:
