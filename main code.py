@@ -786,30 +786,6 @@ async def predict_api(file: UploadFile = File(...)):
 def run_api():
     uvicorn.run(app, host="0.0.0.0", port=8000)
     
-def get_working_translator():
-    endpoints = [
-        "https://libretranslate.de/",
-        "https://translate.argosopentech.com/",
-        "https://translate.terraprint.co/",
-        "https://lt.vern.cc/"
-    ]
-    
-    for endpoint in endpoints:
-        try:
-            st.write(f"Attempting to connect to {endpoint}...")
-            translator = LibreTranslateAPI(endpoint)
-            # Test with a simple translation
-            test_result = translator.translate("test", source="en", target="es")
-            if test_result:
-                st.success(f"✅ Connected to translation service at {endpoint}")
-                return translator
-        except Exception as e:
-            st.write(f"❌ Failed to connect to {endpoint}: {str(e)}")
-            continue
-    
-    st.warning("Could not connect to any translation service. Displaying in English only.")
-    return None
-
 # --- Main App ---
 def main():
     load_css()
