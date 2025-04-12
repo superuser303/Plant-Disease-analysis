@@ -35,8 +35,10 @@ if 'prediction_made' not in st.session_state:
     st.session_state['prediction_made'] = False
 if 'loading' not in st.session_state:
     st.session_state['loading'] = False
-if 'translator' not in st.session_state:
-    st.session_state['translator'] = None
+if 'messages' not in st.session_state:
+    st.session_state['messages'] = [
+        {"role": "assistant", "content": "Hello! I'm MediPlant Assistant. Upload a plant image or ask me about medicinal plants and diseases!"}
+    ]
     
 # --- Page Configuration ---
 st.set_page_config(
@@ -851,6 +853,58 @@ def main():
         key="combined_uploader"
     )
 
+        def generate_response(prompt, plant_info=None, disease_info=None):
+            """
+            Generate a response based on user input and any detected plant/disease info
+            """
+            # Simple response rules
+            prompt = prompt.lower()
+            
+            # If we have plant info, use it for better responses
+            if plant_info:
+                plant_name = plant_info
+                
+                if "use" in prompt or "benefit" in prompt or "medicinal" in prompt:
+                    if plant_name in use_of_medicine:
+                        uses = use_of_medicine[plant_name]
+                        return f"Here are the medicinal uses of {plant_name}:\n" + "\n".join([f"• {use}" for use in uses])
+                    else:
+                        return f"I don't have specific medicinal use information for {plant_name}."
+                        
+                elif "prepare" in prompt or "method" in prompt or "how to use" in prompt:
+                    if plant_name in methods_of_preparation:
+                        return f"Method of preparation for {plant_name}:\n{methods_of_preparation[plant_name]}"
+                    else:
+                        return f"I don't have preparation method information for {plant_name}."
+            
+            # If we have disease info, use it for better responses
+            if disease_info and "Unknown" not in disease_info:
+                disease_name = disease_info
+                
+                if "treat" in prompt or "cure" in prompt or "remedy" in prompt:
+                    if disease_name in disease_info:
+                        return f"Remedy for {disease_name.replace('___', ' ')}:\n{disease_info[disease_name]['remedy']}"
+                    else:
+                        return f"I don't have remedy information for {disease_name.replace('___', ' ')}."
+                        
+                elif "what is" in prompt or "about" in prompt or "describe" in prompt:
+                    if disease_name in disease_info:
+                        return f"About {disease_name.replace('___', ' ')}:\n{disease_info[disease_name]['desc']}"
+                    else:
+                        return f"I don't have description information for {disease_name.replace('___', ' ')}."
+            
+            # Generic responses for common plant/disease questions
+            if "common diseases" in prompt:
+                return "Common plant diseases include powdery mildew, leaf spot, blight, rust, and various viral infections. Upload an image to detect specific diseases!"
+            
+            elif "tips" in prompt and "plant" in prompt:
+                return "Here are some general plant care tips:\n• Ensure proper watering - not too much, not too little\n• Provide adequate sunlight based on plant type\n• Use appropriate soil and fertilizer\n• Monitor for pests and diseases regularly"
+            
+            elif "medicinal plants" in prompt:
+                return "Some popular medicinal plants include Aloe Vera, Tulsi (Holy Basil), Neem, Ashwagandha, Mint, and Turmeric. Upload an image to identify specific plants!"
+            
+            # Fallback response
+            return "I'm your MediPlant Assistant! I can help identify plants, detect diseases, and provide information about medicinal uses. Upload an image or ask me a specific question about plants or diseases."
     # Tabs for Results
     tab1, tab2 = st.tabs(["Plant Identification", "Disease Detection"])
 
@@ -904,89 +958,66 @@ def main():
                 else:
                     st.markdown(f"• {uses}")
                 st.markdown("</div>", unsafe_allow_html=True)
+        
         with tab2:
-            st.subheader("Disease Detection Results")
-    
-        # Move language selection to sidebar
-        languages = {"English": "en", "Spanish": "es", "French": "fr"}
-        with st.sidebar:
-            lang = st.selectbox("Select Language", list(languages.keys()))
-            st.write("Note: Translation requires internet connectivity")
+            st.subheader("Plant Assistant Chatbot")
             
-            # Add a button to test translation services
-            if st.button("Test Translation Services"):
-                translator = get_working_translator()
-                if translator:
-                    st.session_state['translator'] = translator
-                else:
-                    st.session_state['translator'] = None
-        
-        with st.sidebar.expander("How to Use"):
-            st.write("Adjust settings for disease detection.")
+            # Get any prediction results to inform the chatbot
+            predicted_plant = None
+            if 'prediction_made' in st.session_state and st.session_state['prediction_made']:
+                predicted_plant = predicted_class
+            
+            detected_disease = None
+            if disease and 'Unknown' not in disease:
+                detected_disease = disease
+            
+            # Display chat messages
+            for message in st.session_state.messages:
+                with st.chat_message(message["role"]):
+                    st.write(message["content"])
+            
+            # Chat input
+            if prompt := st.chat_input("Ask about plants, diseases, or medicinal uses..."):
+                # Add user message to chat history
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                
+                # Display user message
+                with st.chat_message("user"):
+                    st.write(prompt)
+                
+                # Generate and display assistant response
+                with st.chat_message("assistant"):
+                    response = generate_response(prompt, predicted_plant, detected_disease)
+                    st.write(response)
+                
+                # Add assistant response to chat history
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            # Add some help text
+            with st.expander("Chatbot Help"):
+                st.write("""
+                ### How to use the Plant Assistant:
+                
+                - **Ask about identified plants**: "What are the medicinal uses of this plant?"
+                - **Ask about detected diseases**: "How do I treat this disease?"
+                - **General questions**: "What are common medicinal plants for headaches?"
+                - **Care advice**: "How should I care for herb plants?"
+                
+                The assistant works best when you've uploaded an image for identification.
+                """)        
+            # Continue with existing code...
+                heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
+                st.image(heatmap, caption="Heatmap", width=200)
     
-        confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
-        brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
-        contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
+                fig, ax = plt.subplots()
+                ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
+                plt.xticks(rotation=90)
+                st.pyplot(fig)
     
-        global device
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
-    
-        with st.spinner("Analyzing..."):
-            disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
-            species = detect_species(disease)
-            severity = estimate_severity(disease_confidence)
-    
-            # Translation part
-            if lang != "English":
-                try:
-                    # Check if we already have a working translator in session state
-                    if 'translator' not in st.session_state or st.session_state['translator'] is None:
-                        translator = get_working_translator()
-                        st.session_state['translator'] = translator
-                    else:
-                        translator = st.session_state['translator']
-                    
-                    # Attempt translation if we have a translator
-                    if translator:
-                        disease_trans = translator.translate(disease.replace("___", " - "), source="en", target=languages[lang])
-                        species_trans = translator.translate(species, source="en", target=languages[lang])
-                    else:
-                        disease_trans = disease.replace("___", " - ")
-                        species_trans = species
-                        st.info("Translation service unavailable. Displaying in English.")
-                except Exception as e:
-                    st.warning(f"Translation failed: {str(e)}. Displaying in English.")
-                    disease_trans = disease.replace("___", " - ")
-                    species_trans = species
-            else:
-                disease_trans = disease.replace("___", " - ")
-                species_trans = species
-    
-            # Display results
-            st.write(f"**Species:** {species_trans}")
-            st.write(f"**Disease:** {disease_trans}")
-            st.write(f"**Confidence:** {disease_confidence:.2f}%")
-            st.write(f"**Severity:** {severity}")
-        
-        # Rest of your display code remains the same
-        if disease in disease_info:
-            st.write(f"**Description:** {disease_info[disease]['desc']}")
-            st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
-        
-        # Continue with existing code...
-            heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
-            st.image(heatmap, caption="Heatmap", width=200)
-
-            fig, ax = plt.subplots()
-            ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
-            plt.xticks(rotation=90)
-            st.pyplot(fig)
-
-            feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
-            if feedback == "No":
-                with open("feedback.txt", "a") as f:
-                    f.write(f"{disease},{disease_confidence}\n")
+                feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
+                if feedback == "No":
+                    with open("feedback.txt", "a") as f:
+                        f.write(f"{disease},{disease_confidence}\n")
 
     # About Section
     st.markdown("""
