@@ -968,63 +968,46 @@ def main():
         
         with tab2:
             st.subheader("Plant Assistant Chatbot")
-            
-            # Get any prediction results to inform the chatbot
-            predicted_plant = None
-            if 'prediction_made' in st.session_state and st.session_state['prediction_made']:
-                predicted_plant = predicted_class
-            
-            detected_disease = None
-            if disease and 'Unknown' not in disease:
-                detected_disease = disease
-            
-            # Display chat messages
-            for message in st.session_state.messages:
-                with st.chat_message(message["role"]):
-                    st.write(message["content"])
-            
-            # Chat input
-            if prompt := st.chat_input("Ask about plants, diseases, or medicinal uses..."):
-                # Add user message to chat history
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                
-                # Display user message
-                with st.chat_message("user"):
-                    st.write(prompt)
-                
-                # Generate and display assistant response
-                with st.chat_message("assistant"):
-                    response = generate_response(prompt, predicted_plant, detected_disease)
-                    st.write(response)
-                
-                # Add assistant response to chat history
-                st.session_state.messages.append({"role": "assistant", "content": response})
-            
-            # Add some help text
-            with st.expander("Chatbot Help"):
-                st.write("""
-                ### How to use the Plant Assistant:
-                
-                - **Ask about identified plants**: "What are the medicinal uses of this plant?"
-                - **Ask about detected diseases**: "How do I treat this disease?"
-                - **General questions**: "What are common medicinal plants for headaches?"
-                - **Care advice**: "How should I care for herb plants?"
-                
-                The assistant works best when you've uploaded an image for identification.
-                """)        
-            # Continue with existing code...
-                heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
-                st.image(heatmap, caption="Heatmap", width=200)
     
-                fig, ax = plt.subplots()
-                ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
-                plt.xticks(rotation=90)
-                st.pyplot(fig)
+        # Get any prediction results to inform the chatbot
+        predicted_plant = None
+        if 'prediction_made' in st.session_state and st.session_state['prediction_made']:
+            predicted_plant = predicted_class
     
-                feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
-                if feedback == "No":
-                    with open("feedback.txt", "a") as f:
-                        f.write(f"{disease},{disease_confidence}\n")
+        # Initialize disease variable with None to avoid reference error
+        disease = None
+        detected_disease = None
+    
+        # Only try to get disease information if we have uploaded a file
+        if uploaded_file and st.session_state['model_disease'] is not None:
+            try:
+                # Process image for disease detection
+                img = Image.open(uploaded_file)
+                img_tensor = preprocess_image(img).to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+                disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names)
+            
+                if disease and 'Unknown' not in disease:
+                    detected_disease = disease
+            except Exception as e:
+                st.error(f"Error analyzing disease: {str(e)}")
+    
+        # Display chat messages
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])            
+        # Continue with existing code...
+        heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
+        st.image(heatmap, caption="Heatmap", width=200)
+    
+        fig, ax = plt.subplots()
+        ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
+        plt.xticks(rotation=90)
+        st.pyplot(fig)
+    
+        feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
+        if feedback == "No":
+            with open("feedback.txt", "a") as f:
+                f.write(f"{disease},{disease_confidence}\n")
 
     # About Section
     st.markdown("""
