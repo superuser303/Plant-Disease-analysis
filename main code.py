@@ -21,10 +21,10 @@ from elevenlabs import VoiceSettings
 import io
 from langchain_community.llms import HuggingFacePipeline
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-               <li>Real-time plant identification and disease detection</li>
-               <li>Detailed preparation methods and medicinal uses</li>
-               <li>Disease severity assessment and remedies</li>
-               <li>Confidence scoring and heatmap visualization</li>
+             <li>Real-time plant identification and disease detection</li>
+             <li>Detailed preparation methods and medicinal uses</li>
+             <li>Disease severity assessment and remedies</li>
+             <li>Confidence scoring and heatmap visualization</li>
             </ul>
         </div>
     """, unsafe_allow_html=True)
