@@ -859,8 +859,8 @@ def main():
                         st.session_state.elevenlabs_chars_used += len(text)
                         return io.BytesIO(audio_bytes)
                     except Exception as e:
-                            st.error(f"Audio generation failed: {str(e)}")
-                            return None 
+                        st.error(f"Audio generation failed: {str(e)}")
+                        return None 
         
 
             # Initialize LLM with error handling
