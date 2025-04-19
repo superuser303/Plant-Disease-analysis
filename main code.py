@@ -854,11 +854,14 @@ def main():
                         model_id="eleven_multilingual_v2",
                         voice_settings=VoiceSettings(stability=0.7, similarity_boost=0.5)
                     )
-                    st.session_state.elevenlabs_chars_used += len(text)
-                    return io.BytesIO(audio)
-                except Exception as e:
-                    st.error(f"Audio generation failed: {str(e)}")
-                    return None
+                    # Collect generator output into bytes
+                        audio_bytes = b"".join(audio_stream)  # Combine chunks
+                        st.session_state.elevenlabs_chars_used += len(text)
+                        return io.BytesIO(audio_bytes)
+                    except Exception as e:
+                            st.error(f"Audio generation failed: {str(e)}")
+                            return None 
+        
 
             # Initialize LLM with error handling
             if "llm" not in st.session_state:
