@@ -848,10 +848,10 @@ if uploaded_file:
 
             def text_to_speech(text, voice_id="pNInz6obpgDQGcFmaJgB"):  # Adam voice
                 try:
-                    audio = elevenlabs_client.generate(
+                    audio = elevenlabs_client.text_to_speech.convert(
+                        voice_id=voice_id,
                         text=text,
-                        voice=voice_id,
-                        model="eleven_multilingual_v2",
+                        model_id="eleven_multilingual_v2",
                         voice_settings=VoiceSettings(stability=0.7, similarity_boost=0.5)
                     )
                     st.session_state.elevenlabs_chars_used += len(text)
@@ -860,23 +860,27 @@ if uploaded_file:
                     st.error(f"Audio generation failed: {str(e)}")
                     return None
 
-            # Initialize LLM
+            # Initialize LLM with error handling
             if "llm" not in st.session_state:
-                model_name = "distilgpt2"
-                tokenizer = AutoTokenizer.from_pretrained(model_name)
-                model = AutoModelForCausalLM.from_pretrained(model_name)
-                pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_length=150)
-                st.session_state.llm = HuggingFacePipeline(pipeline=pipe)
+                try:
+                    model_name = "distilgpt2"
+                    tokenizer = AutoTokenizer.from_pretrained(model_name)
+                    model = AutoModelForCausalLM.from_pretrained(model_name)
+                    pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_length=100)
+                    st.session_state.llm = HuggingFacePipeline(pipeline=pipe)
+                except Exception as e:
+                    st.error(f"Failed to load LLM: {str(e)}")
+                    st.session_state.llm = None
 
             with st.sidebar:
                 st.header("🌿 PhytoSense Voice Assistant")
-                st.markdown("Ask about plant diseases, care tips, or medicinal uses!")
+                st.markdown("Ask about plant diseases or medicinal uses! (Click to play audio)")
                 st.caption(f"Characters used: {st.session_state.elevenlabs_chars_used}/10,000 (Free Plan)")
 
                 # Chat history
                 if "voice_chat_history" not in st.session_state:
                     st.session_state.voice_chat_history = [
-                        {"role": "assistant", "content": "Hi! I'm your plant care assistant. Try asking about tomato blight or neem uses."}
+                        {"role": "assistant", "content": "Hi! Ask about tomato blight or neem uses."}
                     ]
 
                 # Display chat messages
@@ -897,11 +901,17 @@ if uploaded_file:
                             st.markdown(prompt)
 
                     with st.spinner("Generating response..."):
-                        # Generate response with LLM
-                        llm_prompt = f"You are a plant care expert. Use this context: {disease_info} {methods_of_preparation} {use_of_medicine}. Answer concisely: {prompt}"
-                        response = st.session_state.llm(llm_prompt).strip()
-                        if not response:
-                            response = "Sorry, I couldn't generate a response. Try rephrasing your question!"
+                        # Generate response with LLM or fallback
+                        if st.session_state.llm:
+                            llm_prompt = f"You are a plant care expert. Use this context: {disease_info} {methods_of_preparation} {use_of_medicine}. Answer concisely: {prompt}"
+                            try:
+                                response = st.session_state.llm(llm_prompt).strip()
+                                if not response:
+                                    response = "Sorry, I couldn't generate a response. Try rephrasing."
+                            except Exception as e:
+                                response = f"LLM error: {str(e)}. Try again."
+                        else:
+                            response = "LLM unavailable. Try asking about tomato blight or neem."
 
                         # Convert to speech
                         audio_buffer = text_to_speech(response)
@@ -919,6 +929,8 @@ if uploaded_file:
             with st.sidebar.expander("How to Use"):
                 st.write("Adjust settings for disease detection.")
 
+            st.subheader("Disease Detection Results")
+
             confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
             brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
             contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
@@ -931,7 +943,7 @@ if uploaded_file:
                 disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
                 species = detect_species(disease)
                 severity = estimate_severity(disease_confidence)
-                
+
                 st.write(f"**Species:** {species}")
                 st.write(f"**Disease:** {disease.replace('___', ' - ')}")
                 st.write(f"**Confidence:** {disease_confidence:.2f}%")
@@ -940,9 +952,10 @@ if uploaded_file:
                 if disease in disease_info:
                     st.write(f"**Description:** {disease_info[disease]['desc']}")
                     st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
+
                 heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
                 st.image(heatmap, caption="Heatmap", width=200)
-
+                
                 fig, ax = plt.subplots()
                 ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
                 plt.xticks(rotation=90)
