@@ -14,7 +14,13 @@ from torchvision.models import resnet50
 import cv2
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam import GradCAM
-from pytorch_grad_cam.utils.image i.74151; line-height: 1.6;>
+from pytorch_grad_cam.utils.image import show_cam_on_image
+from pytorch_grad_cam.utils.image import show_cam_on_image
+from elevenlabs.client import ElevenLabs
+from elevenlabs import VoiceSettings
+import io
+from langchain_community.llms import HuggingFacePipeline
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
                 <li>Real-time plant identification and disease detection</li>
                 <li>Detailed preparation methods and medicinal uses</li>
                 <li>Disease severity assessment and remedies</li>
