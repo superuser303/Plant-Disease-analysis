@@ -840,7 +840,7 @@ def main():
         with tab2:
             st.subheader("Disease Detection Results")
            # Initialize ElevenLabs client
-            elevenlabs_client = ElevenLabs(api_key=st.secrets["ELEVENLABS_API_KEY"])
+            elevenlabs_client = ElevenLabs(api_key=st.secrets[sk_c9c0fe18d97747eadbe48036abfbdc779b4365a2d63c2cda])
 
             # Track character usage
             if "elevenlabs_chars_used" not in st.session_state:
