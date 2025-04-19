@@ -15,14 +15,11 @@ import cv2
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
-import matplotlib.pyplot as plt
-import os
-from fastapi import FastAPI, UploadFile, File
-import uvicorn
-import threading
-from langchain.llms import HuggingFacePipeline
+from elevenlabs.client import ElevenLabs
+from elevenlabs import VoiceSettings
+import io
+from langchain_community.llms import HuggingFacePipeline
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-
 # Debug statements
 print(f"TensorFlow version: {tf.__version__}")
 from tensorflow.keras.preprocessing import image
@@ -840,7 +837,7 @@ def main():
         with tab2:
             st.subheader("Disease Detection Results")
            # Initialize ElevenLabs client
-            elevenlabs_client = ElevenLabs(api_key=st.secrets["sk_c9c0fe18d97747eadbe48036abfbdc779b4365a2d63c2cda"])
+            elevenlabs_client = ElevenLabs(api_key=st.secrets["ELEVENLABS_API_KEY"])
 
             # Track character usage
             if "elevenlabs_chars_used" not in st.session_state:
