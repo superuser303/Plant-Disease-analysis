@@ -11,5 +11,6 @@ git+https://github.com/jacobgil/pytorch-grad-cam.git
 matplotlib==3.9.0
 fastapi==0.111.0
 uvicorn==0.30.1
-libretranslatepy==2.1.1
-
+elevenlabs==0.3.2
+transformers==4.44.2
+langchain==0.3.1
