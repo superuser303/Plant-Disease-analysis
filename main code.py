@@ -12,7 +12,6 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.models import resnet50
 import cv2
-from fastapi import FastAPI, File, UploadFile
 import uvicorn
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam import GradCAM
