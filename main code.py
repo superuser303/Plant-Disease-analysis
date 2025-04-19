@@ -2,7 +2,7 @@ import gdown
 import tensorflow as tf
 import streamlit as st
 import numpy as np
-from tensorflow.keras.preprocessing.image import img_to_array
+from tensorflow.keras.preprocessing import image
 from tensorflow.keras.models import load_model
 from PIL import Image
 import base64
@@ -17,27 +17,27 @@ from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 import matplotlib.pyplot as plt
 import os
-from libretranslatepy import LibreTranslateAPI  # Replaced deepl
 from fastapi import FastAPI, UploadFile, File
 import uvicorn
 import threading
+from langchain.llms import HuggingFacePipeline
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 # Debug statements
 print(f"TensorFlow version: {tf.__version__}")
+from tensorflow.keras.preprocessing import image
 print("Imported tensorflow.keras.preprocessing.image successfully")
 
 # --- Session State Initialization ---
 if 'model_plant' not in st.session_state:
-    st.session_state['model_plant'] = None
+    st.session_state['model_plant'] = None  # TensorFlow model for plant identification
 if 'model_disease' not in st.session_state:
-    st.session_state['model_disease'] = None
+    st.session_state['model_disease'] = None  # PyTorch model for disease detection
 if 'prediction_made' not in st.session_state:
     st.session_state['prediction_made'] = False
 if 'loading' not in st.session_state:
     st.session_state['loading'] = False
-if 'translator' not in st.session_state:
-    st.session_state['translator'] = None
-    
+
 # --- Page Configuration ---
 st.set_page_config(
     page_title="MediPlant AI | Plant Identification & Disease Detection",
@@ -188,46 +188,47 @@ disease_class_names = [
     "Tomato___Tomato_Yellow_Leaf_Curl_Virus", "Tomato___Tomato_mosaic_virus", "Tomato___healthy"
 ]
 
+    # Disease info
 disease_info = {
-    "Apple___Apple_scab": {"desc": "Fungal disease causing dark, velvety spots on leaves and fruit.", "remedy": "Apply fungicides, remove infected leaves, improve air circulation."},
-    "Apple___Black_rot": {"desc": "Fungal infection leading to black, shriveled fruit and leaf spots.", "remedy": "Prune infected parts, apply fungicides, remove mummified fruit."},
-    "Apple___Cedar_apple_rust": {"desc": "Fungal disease with yellow-orange spots on leaves and fruit.", "remedy": "Remove nearby cedar trees, apply fungicides, prune affected areas."},
-    "Apple___healthy": {"desc": "No disease present, healthy apple plant.", "remedy": "Maintain proper care: watering, pruning, and fertilization."},
-    "Blueberry___healthy": {"desc": "No disease present, healthy blueberry plant.", "remedy": "Continue regular care: watering, mulching, and monitoring."},
-    "Cherry___Powdery_mildew": {"desc": "Fungal disease with white powdery coating on leaves.", "remedy": "Apply sulfur-based fungicides, improve air circulation, prune affected parts."},
-    "Cherry___healthy": {"desc": "No disease present, healthy cherry plant.", "remedy": "Maintain proper irrigation and pruning practices."},
-    "Corn___Cercospora_leaf_spot Gray_leaf_spot": {"desc": "Fungal disease causing grayish-white leaf spots.", "remedy": "Use resistant varieties, apply fungicides, rotate crops."},
-    "Corn___Common_rust": {"desc": "Fungal infection with orange-brown pustules on leaves.", "remedy": "Plant resistant hybrids, apply fungicides, remove crop debris."},
-    "Corn___Northern_Leaf_Blight": {"desc": "Fungal disease with long, grayish-white lesions on leaves.", "remedy": "Use resistant varieties, apply fungicides, practice crop rotation."},
-    "Corn___healthy": {"desc": "No disease present, healthy corn plant.", "remedy": "Ensure proper nutrition and irrigation."},
-    "Grape___Black_rot": {"desc": "Fungal disease causing black spots on leaves and fruit.", "remedy": "Remove infected parts, apply fungicides, improve canopy airflow."},
-    "Grape___Esca_(Black_Measles)": {"desc": "Fungal disease with dark streaks in wood and leaf wilting.", "remedy": "Prune affected vines, no cure but manage with sanitation."},
-    "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)": {"desc": "Fungal infection with brown, necrotic leaf spots.", "remedy": "Apply fungicides, remove infected leaves, improve air circulation."},
-    "Grape___healthy": {"desc": "No disease present, healthy grape vine.", "remedy": "Maintain pruning and irrigation practices."},
-    "Orange___Haunglongbing_(Citrus_greening)": {"desc": "Bacterial disease causing yellowing leaves and misshapen fruit.", "remedy": "Remove infected trees, control psyllid vectors, no cure."},
-    "Peach___Bacterial_spot": {"desc": "Bacterial disease with water-soaked spots on leaves and fruit.", "remedy": "Apply copper-based sprays, remove infected parts, avoid overhead watering."},
-    "Peach___healthy": {"desc": "No disease present, healthy peach plant.", "remedy": "Continue proper care: pruning, watering, and pest monitoring."},
-    "Pepper,_bell___Bacterial_spot": {"desc": "Bacterial infection causing dark, water-soaked spots on leaves.", "remedy": "Use copper sprays, remove infected plants, avoid wet foliage."},
-    "Pepper,_bell___healthy": {"desc": "No disease present, healthy bell pepper plant.", "remedy": "Maintain consistent watering and fertilization."},
-    "Potato___Early_blight": {"desc": "Fungal disease with concentric rings on leaves.", "remedy": "Apply fungicides, remove infected leaves, rotate crops."},
-    "Potato___Late_blight": {"desc": "Fungal disease causing dark, wet lesions on leaves and tubers.", "remedy": "Apply fungicides, destroy infected plants, improve drainage."},
-    "Potato___healthy": {"desc": "No disease present, healthy potato plant.", "remedy": "Ensure proper soil health and irrigation."},
-    "Raspberry___healthy": {"desc": "No disease present, healthy raspberry plant.", "remedy": "Maintain pruning and weed control."},
-    "Soybean___healthy": {"desc": "No disease present, healthy soybean plant.", "remedy": "Continue crop rotation and monitoring."},
-    "Squash___Powdery_mildew": {"desc": "Fungal disease with white powdery spots on leaves.", "remedy": "Apply fungicides, improve air circulation, remove infected parts."},
-    "Strawberry___Leaf_scorch": {"desc": "Fungal disease causing dark purple to brown leaf spots.", "remedy": "Remove infected leaves, apply fungicides, improve spacing."},
-    "Strawberry___healthy": {"desc": "No disease present, healthy strawberry plant.", "remedy": "Maintain irrigation and mulch for soil health."},
-    "Tomato___Bacterial_spot": {"desc": "Bacterial disease with small, water-soaked spots on leaves.", "remedy": "Use copper sprays, remove infected parts, avoid overhead watering."},
-    "Tomato___Early_blight": {"desc": "Fungal disease with concentric rings on leaves.", "remedy": "Apply fungicides, remove lower leaves, rotate crops."},
-    "Tomato___Late_blight": {"desc": "Fungal disease with large, wet lesions on leaves and fruit.", "remedy": "Apply fungicides, destroy infected plants, improve air flow."},
-    "Tomato___Leaf_Mold": {"desc": "Fungal disease with yellowing leaves and mold on undersides.", "remedy": "Improve ventilation, apply fungicides, remove infected leaves."},
-    "Tomato___Septoria_leaf_spot": {"desc": "Fungal disease with small, grayish spots on leaves.", "remedy": "Remove infected leaves, apply fungicides, avoid wet foliage."},
-    "Tomato___Spider_mites Two-spotted_spider_mite": {"desc": "Pest damage causing stippling and webbing on leaves.", "remedy": "Use miticides, increase humidity, introduce predatory mites."},
-    "Tomato___Target_Spot": {"desc": "Fungal disease with concentric spots on leaves.", "remedy": "Apply fungicides, remove infected leaves, improve spacing."},
-    "Tomato___Tomato_Yellow_Leaf_Curl_Virus": {"desc": "Viral disease with yellowing, curling leaves.", "remedy": "Control whiteflies, remove infected plants, use resistant varieties."},
-    "Tomato___Tomato_mosaic_virus": {"desc": "Viral disease causing mottled leaves and stunted growth.", "remedy": "Remove infected plants, disinfect tools, use resistant varieties."},
-    "Tomato___healthy": {"desc": "No disease present, healthy tomato plant.", "remedy": "Maintain proper watering, staking, and fertilization."}
-}
+        "Apple___Apple_scab": {"desc": "Fungal disease causing dark, velvety spots on leaves and fruit.", "remedy": "Apply fungicides, remove infected leaves, improve air circulation."},
+        "Apple___Black_rot": {"desc": "Fungal infection leading to black, shriveled fruit and leaf spots.", "remedy": "Prune infected parts, apply fungicides, remove mummified fruit."},
+        "Apple___Cedar_apple_rust": {"desc": "Fungal disease with yellow-orange spots on leaves and fruit.", "remedy": "Remove nearby cedar trees, apply fungicides, prune affected areas."},
+        "Apple___healthy": {"desc": "No disease present, healthy apple plant.", "remedy": "Maintain proper care: watering, pruning, and fertilization."},
+        "Blueberry___healthy": {"desc": "No disease present, healthy blueberry plant.", "remedy": "Continue regular care: watering, mulching, and monitoring."},
+        "Cherry___Powdery_mildew": {"desc": "Fungal disease with white powdery coating on leaves.", "remedy": "Apply sulfur-based fungicides, improve air circulation, prune affected parts."},
+        "Cherry___healthy": {"desc": "No disease present, healthy cherry plant.", "remedy": "Maintain proper irrigation and pruning practices."},
+        "Corn___Cercospora_leaf_spot Gray_leaf_spot": {"desc": "Fungal disease causing grayish-white leaf spots.", "remedy": "Use resistant varieties, apply fungicides, rotate crops."},
+        "Corn___Common_rust": {"desc": "Fungal infection with orange-brown pustules on leaves.", "remedy": "Plant resistant hybrids, apply fungicides, remove crop debris."},
+        "Corn___Northern_Leaf_Blight": {"desc": "Fungal disease with long, grayish-white lesions on leaves.", "remedy": "Use resistant varieties, apply fungicides, practice crop rotation."},
+        "Corn___healthy": {"desc": "No disease present, healthy corn plant.", "remedy": "Ensure proper nutrition and irrigation."},
+        "Grape___Black_rot": {"desc": "Fungal disease causing black spots on leaves and fruit.", "remedy": "Remove infected parts, apply fungicides, improve canopy airflow."},
+        "Grape___Esca_(Black_Measles)": {"desc": "Fungal disease with dark streaks in wood and leaf wilting.", "remedy": "Prune affected vines, no cure but manage with sanitation."},
+        "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)": {"desc": "Fungal infection with brown, necrotic leaf spots.", "remedy": "Apply fungicides, remove infected leaves, improve air circulation."},
+        "Grape___healthy": {"desc": "No disease present, healthy grape vine.", "remedy": "Maintain pruning and irrigation practices."},
+        "Orange___Haunglongbing_(Citrus_greening)": {"desc": "Bacterial disease causing yellowing leaves and misshapen fruit.", "remedy": "Remove infected trees, control psyllid vectors, no cure."},
+        "Peach___Bacterial_spot": {"desc": "Bacterial disease with water-soaked spots on leaves and fruit.", "remedy": "Apply copper-based sprays, remove infected parts, avoid overhead watering."},
+        "Peach___healthy": {"desc": "No disease present, healthy peach plant.", "remedy": "Continue proper care: pruning, watering, and pest monitoring."},
+        "Pepper,_bell___Bacterial_spot": {"desc": "Bacterial infection causing dark, water-soaked spots on leaves.", "remedy": "Use copper sprays, remove infected plants, avoid wet foliage."},
+        "Pepper,_bell___healthy": {"desc": "No disease present, healthy bell pepper plant.", "remedy": "Maintain consistent watering and fertilization."},
+        "Potato___Early_blight": {"desc": "Fungal disease with concentric rings on leaves.", "remedy": "Apply fungicides, remove infected leaves, rotate crops."},
+        "Potato___Late_blight": {"desc": "Fungal disease causing dark, wet lesions on leaves and tubers.", "remedy": "Apply fungicides, destroy infected plants, improve drainage."},
+        "Potato___healthy": {"desc": "No disease present, healthy potato plant.", "remedy": "Ensure proper soil health and irrigation."},
+        "Raspberry___healthy": {"desc": "No disease present, healthy raspberry plant.", "remedy": "Maintain pruning and weed control."},
+        "Soybean___healthy": {"desc": "No disease present, healthy soybean plant.", "remedy": "Continue crop rotation and monitoring."},
+        "Squash___Powdery_mildew": {"desc": "Fungal disease with white powdery spots on leaves.", "remedy": "Apply fungicides, improve air circulation, remove infected parts."},
+        "Strawberry___Leaf_scorch": {"desc": "Fungal disease causing dark purple to brown leaf spots.", "remedy": "Remove infected leaves, apply fungicides, improve spacing."},
+        "Strawberry___healthy": {"desc": "No disease present, healthy strawberry plant.", "remedy": "Maintain irrigation and mulch for soil health."},
+        "Tomato___Bacterial_spot": {"desc": "Bacterial disease with small, water-soaked spots on leaves.", "remedy": "Use copper sprays, remove infected parts, avoid overhead watering."},
+        "Tomato___Early_blight": {"desc": "Fungal disease with concentric rings on leaves.", "remedy": "Apply fungicides, remove lower leaves, rotate crops."},
+        "Tomato___Late_blight": {"desc": "Fungal disease with large, wet lesions on leaves and fruit.", "remedy": "Apply fungicides, destroy infected plants, improve air flow."},
+        "Tomato___Leaf_Mold": {"desc": "Fungal disease with yellowing leaves and mold on undersides.", "remedy": "Improve ventilation, apply fungicides, remove infected leaves."},
+        "Tomato___Septoria_leaf_spot": {"desc": "Fungal disease with small, grayish spots on leaves.", "remedy": "Remove infected leaves, apply fungicides, avoid wet foliage."},
+        "Tomato___Spider_mites Two-spotted_spider_mite": {"desc": "Pest damage causing stippling and webbing on leaves.", "remedy": "Use miticides, increase humidity, introduce predatory mites."},
+        "Tomato___Target_Spot": {"desc": "Fungal disease with concentric spots on leaves.", "remedy": "Apply fungicides, remove infected leaves, improve spacing."},
+        "Tomato___Tomato_Yellow_Leaf_Curl_Virus": {"desc": "Viral disease with yellowing, curling leaves.", "remedy": "Control whiteflies, remove infected plants, use resistant varieties."},
+        "Tomato___Tomato_mosaic_virus": {"desc": "Viral disease causing mottled leaves and stunted growth.", "remedy": "Remove infected plants, disinfect tools, use resistant varieties."},
+        "Tomato___healthy": {"desc": "No disease present, healthy tomato plant.", "remedy": "Maintain proper watering, staking, and fertilization."}
+    }
 
 # --- CSS (Unchanged) ---
 def load_css():
@@ -596,6 +597,7 @@ def load_css():
         background: linear-gradient(90deg, #f59e0b, #d97706);
     }
     </style>
+
     """, unsafe_allow_html=True)
 
 # --- Model Loading Functions ---
@@ -618,7 +620,7 @@ def load_trained_model():
         model_path = "plant_model.pth"
         gdown.download(download_url, model_path, quiet=False)
         model = resnet50(pretrained=False)
-        model.fc = torch.nn.Linear(model.fc.in_features, 38)
+        model.fc = torch.nn.Linear(model.fc.in_features, 38)  # 38 classes
         state_dict = torch.load(model_path, map_location='cpu')
         model.load_state_dict(state_dict)
         model.eval()
@@ -634,7 +636,7 @@ def predict_class(img):
         st.session_state['loading'] = True
         img = Image.open(img).convert('RGB')
         img = img.resize((256, 256))
-        img_array = img_to_array(img)
+        img_array = img_to_array(img)  # Updated from image.img_to_array to img_to_array
         img_array = np.expand_dims(img_array, axis=0)
         img_array /= 255.0
 
@@ -652,7 +654,7 @@ def predict_class(img):
         st.error(f"Error during plant prediction: {str(e)}")
         st.session_state['loading'] = False
         return None, None
-
+        
 def preprocess_image(img, target_size=(224, 224), brightness=1.0, contrast=1.0):
     img = img.convert("RGB")
     img_cv = np.array(img)
@@ -676,75 +678,28 @@ def predict_disease(model, img_tensor, class_names, threshold=0.9):
         return class_names[pred_class], confidence * 100
 
 def estimate_severity(confidence):
-    if confidence > 90:
-        return "Mild"
-    elif confidence > 70:
-        return "Moderate"
-    else:
-        return "Severe"
+    if confidence > 90: return "Mild"
+    elif confidence > 70: return "Moderate"
+    else: return "Severe"
 
 def detect_species(disease_name):
     return disease_name.split("___")[0]
 
 def generate_heatmap(model, img_tensor, pred_class):
-    try:
-        img_tensor.requires_grad_(True)
-        cam_extractor = GradCAM(model, target_layers=[model.layer4[-1]])
-        
-        # Debug output
-        print(f"Model: {type(model)}")
-        print(f"Target class: {pred_class}")
-        
-        # Get model predictions
-        out = model(img_tensor)
-        targets = [ClassifierOutputTarget(pred_class)]
-        
-        # Extract the CAM
-        cam = cam_extractor(input_tensor=img_tensor, targets=targets)
-        print(f"CAM type: {type(cam)}, shape: {cam.shape if hasattr(cam, 'shape') else 'N/A'}")
-        
-        # Handle CAM properly
-        if cam is None:
-            print("CAM is None, using fallback")
-            # Return the original image if CAM extraction fails
-            img = img_tensor.squeeze().permute(1, 2, 0).cpu().detach().numpy()
-            img = (img - img.min()) / (img.max() - img.min())
-            return img
-            
-        # Make sure we're working with a numpy array
-        if isinstance(cam, torch.Tensor):
-            heatmap = cam[0].cpu().detach().numpy()
-        else:
-            heatmap = cam[0]  # Assume it's already a numpy array
-            
-        # Normalize the heatmap
-        heatmap = np.maximum(heatmap, 0) / (np.max(heatmap) + 1e-10)  # Add small epsilon to avoid division by zero
-        
-        # Convert the original image to numpy
-        img = img_tensor.squeeze().permute(1, 2, 0).cpu().detach().numpy()
-        img = (img - img.min()) / (img.max() - img.min())
-        
-        # Apply colormap to heatmap
-        heatmap_colored = cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
-        heatmap_colored = np.float32(heatmap_colored) / 255
-        
-        # Combine heatmap with original image
-        superimposed_img = heatmap_colored * 0.4 + img
-        superimposed_img = np.clip(superimposed_img, 0, 1)
-        
-        return superimposed_img
-    except Exception as e:
-        print(f"Error in generate_heatmap: {str(e)}")
-        # Return the original image if anything fails
-        img = img_tensor.squeeze().permute(1, 2, 0).cpu().detach().numpy()
-        img = (img - img.min()) / (img.max() - img.min())
-        return img    
-# --- API Setup (Optional) ---
+    target_layers = [model.layer4[-1]]
+    cam = GradCAM(model=model, target_layers=target_layers)
+    targets = [ClassifierOutputTarget(pred_class)]
+    grayscale_cam = cam(input_tensor=img_tensor, targets=targets)[0, :]
+    img = img_tensor.squeeze().permute(1, 2, 0).cpu().numpy()
+    img = (img - img.min()) / (img.max() - img.min())
+    heatmap = show_cam_on_image(img, grayscale_cam, use_rgb=True)
+    return heatmap
+
+# --- API Setup ---
 app = FastAPI()
 
 @app.post("/predict_disease")
 async def predict_api(file: UploadFile = File(...)):
-    global device
     img = Image.open(file.file)
     img_tensor = preprocess_image(img).to(device)
     disease, confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names)
@@ -752,58 +707,11 @@ async def predict_api(file: UploadFile = File(...)):
 
 def run_api():
     uvicorn.run(app, host="0.0.0.0", port=8000)
-    
-def get_working_translator():
-    """Try multiple working LibreTranslate endpoints with timeout handling"""
-    endpoints = [
-        ("https://translate.astian.org/", "en", "es"),  # Verified working
-        ("https://libretranslate.de/", "en", "es"),      # Sometimes available
-        ("https://translate.mentality.rip/", "en", "es"),# New working instance
-        ("https://lt.vern.cc/", "en", "es")              # Community-hosted
-    ]
-    
-    for endpoint, src, tgt in endpoints:
-        try:
-            # Test with a 5-second timeout
-            translator = LibreTranslateAPI(endpoint, timeout=5)
-            test_result = translator.translate("hello", source=src, target=tgt)
-            if test_result and "hola" in test_result.lower():
-                st.success(f"✅ Connected to translation service at {endpoint}")
-                return translator
-        except Exception as e:
-            st.error(f"❌ Failed to connect to {endpoint}: {str(e)}")
-            continue
-    
-    st.warning("Could not connect to any translation service. Displaying in English only.")
-    return None
 
-# Add timeout parameter to LibreTranslateAPI initialization
-class LibreTranslateAPI:
-    def __init__(self, url, timeout=5):
-        self.url = url.rstrip('/')
-        self.timeout = timeout
-        
-    def translate(self, text, source="en", target="es"):
-        try:
-            response = requests.post(
-                f"{self.url}/translate",
-                json={
-                    "q": text,
-                    "source": source,
-                    "target": target,
-                    "format": "text"
-                },
-                timeout=self.timeout
-            )
-            response.raise_for_status()
-            return response.json()['translatedText']
-        except Exception as e:
-            raise Exception(f"Translation failed: {str(e)}")
-            
 # --- Main App ---
 def main():
     load_css()
-
+    
     # Header
     st.markdown("""
         <div class="header-container">
@@ -821,7 +729,7 @@ def main():
             </div>
         </div>
     """, unsafe_allow_html=True)
-
+    
     # Team Section
     st.markdown("""
     <div class="team-section">
@@ -877,14 +785,15 @@ def main():
     # Tabs for Results
     tab1, tab2 = st.tabs(["Plant Identification", "Disease Detection"])
 
-    if uploaded_file:
-        try:
-            img = Image.open(uploaded_file)
-            uploaded_file.seek(0)
-            st.image(img, caption="Uploaded Image", width=None)
-        except Exception as e:
-            st.error(f"Error displaying image: {str(e)}")
-            st.warning("Please try uploading a different image file.")
+if uploaded_file:
+    try:
+        img = Image.open(uploaded_file)
+        # Make sure the file position is reset before displaying
+        uploaded_file.seek(0)
+        st.image(img, caption="Uploaded Image", use_container_width=True)
+    except Exception as e:
+        st.error(f"Error displaying image: {str(e)}")
+        st.warning("Please try uploading a different image file.")
 
         with tab1:
             st.subheader("Plant Identification Results")
@@ -895,9 +804,9 @@ def main():
                         <div class="loading-text">Analyzing plant image...</div>
                     </div>
                 """, unsafe_allow_html=True)
-
+            
             predicted_class, confidence = predict_class(uploaded_file)
-
+            
             if predicted_class and not st.session_state['loading']:
                 st.markdown(f"""
                     <div class="prediction-container">
@@ -930,76 +839,120 @@ def main():
 
         with tab2:
             st.subheader("Disease Detection Results")
-            
-            # Use the get_working_translator function instead of directly initializing
-            if 'translator' not in st.session_state or st.session_state['translator'] is None:
-                st.session_state['translator'] = get_working_translator()
-                
-            translator = st.session_state['translator']
-            languages = {"English": "en", "Spanish": "es", "French": "fr", "German": "de", "Italian": "it"}
-            lang = st.sidebar.selectbox("Select Language", list(languages.keys()))
-        
+           # Initialize ElevenLabs client
+            elevenlabs_client = ElevenLabs(api_key=st.secrets["sk_c9c0fe18d97747eadbe48036abfbdc779b4365a2d63c2cda"])
+
+            # Track character usage
+            if "elevenlabs_chars_used" not in st.session_state:
+                st.session_state.elevenlabs_chars_used = 0
+
+            def text_to_speech(text, voice_id="pNInz6obpgDQGcFmaJgB"):  # Adam voice
+                try:
+                    audio = elevenlabs_client.generate(
+                        text=text,
+                        voice=voice_id,
+                        model="eleven_multilingual_v2",
+                        voice_settings=VoiceSettings(stability=0.7, similarity_boost=0.5)
+                    )
+                    st.session_state.elevenlabs_chars_used += len(text)
+                    return io.BytesIO(audio)
+                except Exception as e:
+                    st.error(f"Audio generation failed: {str(e)}")
+                    return None
+
+            # Initialize LLM
+            if "llm" not in st.session_state:
+                model_name = "distilgpt2"
+                tokenizer = AutoTokenizer.from_pretrained(model_name)
+                model = AutoModelForCausalLM.from_pretrained(model_name)
+                pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_length=150)
+                st.session_state.llm = HuggingFacePipeline(pipeline=pipe)
+
+            with st.sidebar:
+                st.header("🌿 PhytoSense Voice Assistant")
+                st.markdown("Ask about plant diseases, care tips, or medicinal uses!")
+                st.caption(f"Characters used: {st.session_state.elevenlabs_chars_used}/10,000 (Free Plan)")
+
+                # Chat history
+                if "voice_chat_history" not in st.session_state:
+                    st.session_state.voice_chat_history = [
+                        {"role": "assistant", "content": "Hi! I'm your plant care assistant. Try asking about tomato blight or neem uses."}
+                    ]
+
+                # Display chat messages
+                chat_container = st.container()
+                with chat_container:
+                    for message in st.session_state.voice_chat_history:
+                        with st.chat_message(message["role"], avatar="🌱" if message["role"] == "assistant" else None):
+                            st.markdown(message["content"])
+                            if message["role"] == "assistant" and "audio" in message:
+                                st.audio(message["audio"], format="audio/mp3")
+
+                # User input
+                prompt = st.chat_input("Ask a question (e.g., 'What causes tomato blight?')")
+                if prompt:
+                    st.session_state.voice_chat_history.append({"role": "user", "content": prompt})
+                    with chat_container:
+                        with st.chat_message("user"):
+                            st.markdown(prompt)
+
+                    with st.spinner("Generating response..."):
+                        # Generate response with LLM
+                        llm_prompt = f"You are a plant care expert. Use this context: {disease_info} {methods_of_preparation} {use_of_medicine}. Answer concisely: {prompt}"
+                        response = st.session_state.llm(llm_prompt).strip()
+                        if not response:
+                            response = "Sorry, I couldn't generate a response. Try rephrasing your question!"
+
+                        # Convert to speech
+                        audio_buffer = text_to_speech(response)
+                        if audio_buffer:
+                            st.session_state.voice_chat_history.append({
+                                "role": "assistant",
+                                "content": response,
+                                "audio": audio_buffer
+                            })
+                            with chat_container:
+                                with st.chat_message("assistant", avatar="🌱"):
+                                    st.markdown(response)
+                                    st.audio(audio_buffer, format="audio/mp3")
+
             with st.sidebar.expander("How to Use"):
                 st.write("Adjust settings for disease detection.")
-        
+
             confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
             brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
             contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
-        
+
             global device
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
-        
+
             with st.spinner("Analyzing..."):
                 disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
                 species = detect_species(disease)
                 severity = estimate_severity(disease_confidence)
-        
-                # Safer translation with fallback
-                disease_trans = disease.replace("___", " - ")
-                species_trans = species
                 
-                if translator and lang != "English":
-                    try:
-                        disease_trans = translator.translate(disease.replace("___", " - "), source="en", target=languages[lang])
-                        species_trans = translator.translate(species, source="en", target=languages[lang])
-                    except Exception as e:
-                        st.warning(f"Translation to {lang} failed: {str(e)}. Displaying in English.")
-                
-                st.write(f"**Species:** {species_trans}")
-                st.write(f"**Disease:** {disease_trans}")
+                st.write(f"**Species:** {species}")
+                st.write(f"**Disease:** {disease.replace('___', ' - ')}")
                 st.write(f"**Confidence:** {disease_confidence:.2f}%")
                 st.write(f"**Severity:** {severity}")
                 
                 if disease in disease_info:
-                    description = disease_info[disease]['desc']
-                    remedy = disease_info[disease]['remedy']
-                    
-                    # Try to translate description and remedy if translator is available
-                    if translator and lang != "English":
-                        try:
-                            description = translator.translate(description, source="en", target=languages[lang])
-                            remedy = translator.translate(remedy, source="en", target=languages[lang])
-                        except Exception:
-                            pass  # Fall back to English if translation fails
-                            
-                    st.write(f"**Description:** {description}")
-                    st.write(f"**Remedy:** {remedy}")
-        
-                # Rest of your visualization code remains the same
+                    st.write(f"**Description:** {disease_info[disease]['desc']}")
+                    st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
                 heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
                 st.image(heatmap, caption="Heatmap", width=200)
-        
+
                 fig, ax = plt.subplots()
                 ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
                 plt.xticks(rotation=90)
                 st.pyplot(fig)
-        
+
                 feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
                 if feedback == "No":
                     with open("feedback.txt", "a") as f:
                         f.write(f"{disease},{disease_confidence}\n")
-                        
+
     # About Section
     st.markdown("""
         <div class="glass-card">
@@ -1020,7 +973,7 @@ def main():
         </div>
     """, unsafe_allow_html=True)
 
-# Start API in background (optional)
+# Start API in background
 threading.Thread(target=run_api, daemon=True).start()
 
 if __name__ == "__main__":
