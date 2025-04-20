@@ -839,136 +839,136 @@ def main():
                         st.markdown(f"• {uses}")
                     st.markdown("</div>", unsafe_allow_html=True)
 
-        with tab2:
-            st.subheader("Disease Detection Results")
-           # Initialize ElevenLabs client
-            elevenlabs_client = ElevenLabs(api_key=st.secrets["ELEVENLABS_API_KEY"])
-    
-            # Track character usage
-            if "elevenlabs_chars_used" not in st.session_state:
-                st.session_state.elevenlabs_chars_used = 0
-    
-            def text_to_speech(text, voice_id="pNInz6obpgDQGcFmaJgB"):  # Adam voice
-                try:
-                    audio_stream = elevenlabs_client.text_to_speech.convert(
-                        voice_id=voice_id,
-                        text=text,
-                        model_id="eleven_multilingual_v2",
-                        voice_settings=VoiceSettings(stability=0.7, similarity_boost=0.5)
-                    )
-                    # Collect generator output into bytes
-                    audio_bytes = b"".join(audio_stream)  # Fixed variable name
-                    st.session_state.elevenlabs_chars_used += len(text)
-                    return io.BytesIO(audio_bytes)
-                except Exception as e:
-                    st.error(f"Audio generation failed: {str(e)}")
-                    return None
+            with tab2:
+                st.subheader("Disease Detection Results")
+               # Initialize ElevenLabs client
+                elevenlabs_client = ElevenLabs(api_key=st.secrets["ELEVENLABS_API_KEY"])
         
-
-            # Initialize LLM with error handling
-            if "llm" not in st.session_state:
-                try:
-                    model_name = "distilgpt2"
-                    tokenizer = AutoTokenizer.from_pretrained(model_name)
-                    model = AutoModelForCausalLM.from_pretrained(model_name)
-                    pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_length=100)
-                    st.session_state.llm = HuggingFacePipeline(pipeline=pipe)
-                except Exception as e:
-                    st.error(f"Failed to load LLM: {str(e)}")
-                    st.session_state.llm = None
-
-            with st.sidebar:
-                st.header("🌿 PhytoSense Voice Assistant")
-                st.markdown("Ask about plant diseases or medicinal uses! (Click to play audio)")
-                st.caption(f"Characters used: {st.session_state.elevenlabs_chars_used}/10,000 (Free Plan)")
-
-                # Chat history
-                if "voice_chat_history" not in st.session_state:
-                    st.session_state.voice_chat_history = [
-                        {"role": "assistant", "content": "Hi! Ask about tomato blight or neem uses."}
-                    ]
-
-                # Display chat messages
-                chat_container = st.container()
-                with chat_container:
-                    for message in st.session_state.voice_chat_history:
-                        with st.chat_message(message["role"], avatar="🌱" if message["role"] == "assistant" else None):
-                            st.markdown(message["content"])
-                            if message["role"] == "assistant" and "audio" in message:
-                                st.audio(message["audio"], format="audio/mp3")
-
-                # User input
-                prompt = st.chat_input("Ask a question (e.g., 'What causes tomato blight?')")
-                if prompt:
-                    st.session_state.voice_chat_history.append({"role": "user", "content": prompt})
+                # Track character usage
+                if "elevenlabs_chars_used" not in st.session_state:
+                    st.session_state.elevenlabs_chars_used = 0
+        
+                def text_to_speech(text, voice_id="pNInz6obpgDQGcFmaJgB"):  # Adam voice
+                    try:
+                        audio_stream = elevenlabs_client.text_to_speech.convert(
+                            voice_id=voice_id,
+                            text=text,
+                            model_id="eleven_multilingual_v2",
+                            voice_settings=VoiceSettings(stability=0.7, similarity_boost=0.5)
+                        )
+                        # Collect generator output into bytes
+                        audio_bytes = b"".join(audio_stream)  # Fixed variable name
+                        st.session_state.elevenlabs_chars_used += len(text)
+                        return io.BytesIO(audio_bytes)
+                    except Exception as e:
+                        st.error(f"Audio generation failed: {str(e)}")
+                        return None
+            
+    
+                # Initialize LLM with error handling
+                if "llm" not in st.session_state:
+                    try:
+                        model_name = "distilgpt2"
+                        tokenizer = AutoTokenizer.from_pretrained(model_name)
+                        model = AutoModelForCausalLM.from_pretrained(model_name)
+                        pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_length=100)
+                        st.session_state.llm = HuggingFacePipeline(pipeline=pipe)
+                    except Exception as e:
+                        st.error(f"Failed to load LLM: {str(e)}")
+                        st.session_state.llm = None
+    
+                with st.sidebar:
+                    st.header("🌿 PhytoSense Voice Assistant")
+                    st.markdown("Ask about plant diseases or medicinal uses! (Click to play audio)")
+                    st.caption(f"Characters used: {st.session_state.elevenlabs_chars_used}/10,000 (Free Plan)")
+    
+                    # Chat history
+                    if "voice_chat_history" not in st.session_state:
+                        st.session_state.voice_chat_history = [
+                            {"role": "assistant", "content": "Hi! Ask about tomato blight or neem uses."}
+                        ]
+    
+                    # Display chat messages
+                    chat_container = st.container()
                     with chat_container:
-                        with st.chat_message("user"):
-                            st.markdown(prompt)
-
-                    with st.spinner("Generating response..."):
-                        # Generate response with LLM or fallback
-                        if st.session_state.llm:
-                            llm_prompt = f"You are a plant care expert. Use this context: {disease_info} {methods_of_preparation} {use_of_medicine}. Answer concisely: {prompt}"
-                            try:
-                                response = st.session_state.llm(llm_prompt).strip()
-                                if not response:
-                                    response = "Sorry, I couldn't generate a response. Try rephrasing."
-                            except Exception as e:
-                                response = f"LLM error: {str(e)}. Try again."
-                        else:
-                            response = "LLM unavailable. Try asking about tomato blight or neem."
-
-                        # Convert to speech
-                        audio_buffer = text_to_speech(response)
-                        if audio_buffer:
-                            st.session_state.voice_chat_history.append({
-                                "role": "assistant",
-                                "content": response,
-                                "audio": audio_buffer
-                            })
-                            with chat_container:
-                                with st.chat_message("assistant", avatar="🌱"):
-                                    st.markdown(response)
-                                    st.audio(audio_buffer, format="audio/mp3")
-
-            with st.sidebar.expander("How to Use"):
-                st.write("Adjust settings for disease detection.")
-
-            confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
-            brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
-            contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
-
-            global device
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
-
-            with st.spinner("Analyzing..."):
-                disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
-                species = detect_species(disease)
-                severity = estimate_severity(disease_confidence)
-
-                st.write(f"**Species:** {species}")
-                st.write(f"**Disease:** {disease.replace('___', ' - ')}")
-                st.write(f"**Confidence:** {disease_confidence:.2f}%")
-                st.write(f"**Severity:** {severity}")
-                
-                if disease in disease_info:
-                    st.write(f"**Description:** {disease_info[disease]['desc']}")
-                    st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
-
-                heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
-                st.image(heatmap, caption="Heatmap", width=200)
-                
-                fig, ax = plt.subplots()
-                ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
-                ax.tick_params(axis='x', rotation=90)
-                st.pyplot(fig)
-                plt.close(fig)  # Free memory
-
-                feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
-                if feedback == "No":
-                    with open("feedback.txt", "a") as f:
-                        f.write(f"{disease},{disease_confidence}\n")
+                        for message in st.session_state.voice_chat_history:
+                            with st.chat_message(message["role"], avatar="🌱" if message["role"] == "assistant" else None):
+                                st.markdown(message["content"])
+                                if message["role"] == "assistant" and "audio" in message:
+                                    st.audio(message["audio"], format="audio/mp3")
+    
+                    # User input
+                    prompt = st.chat_input("Ask a question (e.g., 'What causes tomato blight?')")
+                    if prompt:
+                        st.session_state.voice_chat_history.append({"role": "user", "content": prompt})
+                        with chat_container:
+                            with st.chat_message("user"):
+                                st.markdown(prompt)
+    
+                        with st.spinner("Generating response..."):
+                            # Generate response with LLM or fallback
+                            if st.session_state.llm:
+                                llm_prompt = f"You are a plant care expert. Use this context: {disease_info} {methods_of_preparation} {use_of_medicine}. Answer concisely: {prompt}"
+                                try:
+                                    response = st.session_state.llm(llm_prompt).strip()
+                                    if not response:
+                                        response = "Sorry, I couldn't generate a response. Try rephrasing."
+                                except Exception as e:
+                                    response = f"LLM error: {str(e)}. Try again."
+                            else:
+                                response = "LLM unavailable. Try asking about tomato blight or neem."
+    
+                            # Convert to speech
+                            audio_buffer = text_to_speech(response)
+                            if audio_buffer:
+                                st.session_state.voice_chat_history.append({
+                                    "role": "assistant",
+                                    "content": response,
+                                    "audio": audio_buffer
+                                })
+                                with chat_container:
+                                    with st.chat_message("assistant", avatar="🌱"):
+                                        st.markdown(response)
+                                        st.audio(audio_buffer, format="audio/mp3")
+    
+                with st.sidebar.expander("How to Use"):
+                    st.write("Adjust settings for disease detection.")
+    
+                confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
+                brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
+                contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
+    
+                global device
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
+    
+                with st.spinner("Analyzing..."):
+                    disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
+                    species = detect_species(disease)
+                    severity = estimate_severity(disease_confidence)
+    
+                    st.write(f"**Species:** {species}")
+                    st.write(f"**Disease:** {disease.replace('___', ' - ')}")
+                    st.write(f"**Confidence:** {disease_confidence:.2f}%")
+                    st.write(f"**Severity:** {severity}")
+                    
+                    if disease in disease_info:
+                        st.write(f"**Description:** {disease_info[disease]['desc']}")
+                        st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
+    
+                    heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
+                    st.image(heatmap, caption="Heatmap", width=200)
+                    
+                    fig, ax = plt.subplots()
+                    ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
+                    ax.tick_params(axis='x', rotation=90)
+                    st.pyplot(fig)
+                    plt.close(fig)  # Free memory
+    
+                    feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
+                    if feedback == "No":
+                        with open("feedback.txt", "a") as f:
+                            f.write(f"{disease},{disease_confidence}\n")
 
     # About Section
     st.markdown("""
