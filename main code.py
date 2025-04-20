@@ -798,46 +798,46 @@ def main():
             st.warning("Please try uploading a different image file.")
 
         with tab1:
-                st.subheader("Plant Identification Results")
-                if st.session_state['loading']:
-                    st.markdown("""
-                        <div class="loading-container">
-                            <div class="loading-spinner"></div>
-                            <div class="loading-text">Analyzing plant image...</div>
-                        </div>
-                    """, unsafe_allow_html=True)
+            st.subheader("Plant Identification Results")
+            if st.session_state['loading']:
+                st.markdown("""
+                    <div class="loading-container">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Analyzing plant image...</div>
+                    </div>
+                """, unsafe_allow_html=True)
                 
-                predicted_class, confidence = predict_class(uploaded_file)
+            predicted_class, confidence = predict_class(uploaded_file)
                 
-                if predicted_class and not st.session_state['loading']:
-                    st.markdown(f"""
-                        <div class="prediction-container">
-                            <h2 style="color: #064e3b; margin-bottom: 0.5rem;">
-                                {predicted_class}
-                            </h2>
-                            <div class="confidence-bar">
-                                <div class="confidence-fill" style="width: {confidence}%"></div>
-                            </div>
-                            <p style="color: #374151;">Confidence: {confidence:.1f}%</p>
+            if predicted_class and not st.session_state['loading']:
+                st.markdown(f"""
+                    <div class="prediction-container">
+                        <h2 style="color: #064e3b; margin-bottom: 0.5rem;">
+                            {predicted_class}
+                        </h2>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: {confidence}%"></div>
                         </div>
-                    """, unsafe_allow_html=True)
-                    st.markdown("""
-                        <div class="info-section">
-                            <h3 class="info-title">📝 Method of Preparation</h3>
-                    """, unsafe_allow_html=True)
-                    st.write(methods_of_preparation.get(predicted_class, "No information available"))
-                    st.markdown("</div>", unsafe_allow_html=True)
-                    st.markdown("""
-                        <div class="info-section">
-                            <h3 class="info-title">💊 Medicinal Uses</h3>
-                    """, unsafe_allow_html=True)
-                    uses = use_of_medicine.get(predicted_class, "No information available")
-                    if isinstance(uses, list):
-                        for use in uses:
-                            st.markdown(f"• {use}")
-                    else:
-                        st.markdown(f"• {uses}")
-                    st.markdown("</div>", unsafe_allow_html=True)
+                        <p style="color: #374151;">Confidence: {confidence:.1f}%</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                st.markdown("""
+                    <div class="info-section">
+                        <h3 class="info-title">📝 Method of Preparation</h3>
+                """, unsafe_allow_html=True)
+                st.write(methods_of_preparation.get(predicted_class, "No information available"))
+                st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("""
+                    <div class="info-section">
+                        <h3 class="info-title">💊 Medicinal Uses</h3>
+                """, unsafe_allow_html=True)
+                uses = use_of_medicine.get(predicted_class, "No information available")
+                if isinstance(uses, list):
+                    for use in uses:
+                        st.markdown(f"• {use}")
+                else:
+                    st.markdown(f"• {uses}")
+                st.markdown("</div>", unsafe_allow_html=True)
 
         with tab2:
                 st.subheader("Disease Detection Results")
