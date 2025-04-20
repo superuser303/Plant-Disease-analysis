@@ -934,8 +934,6 @@ def main():
             with st.sidebar.expander("How to Use"):
                 st.write("Adjust settings for disease detection.")
 
-            st.subheader("Disease Detection Results")
-
             confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
             brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
             contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
