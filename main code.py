@@ -797,7 +797,7 @@ def main():
             st.error(f"Error displaying image: {str(e)}")
             st.warning("Please try uploading a different image file.")
 
-        with tab1:
+         with tab1:
                 st.subheader("Plant Identification Results")
                 if st.session_state['loading']:
                     st.markdown("""
