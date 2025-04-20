@@ -797,7 +797,7 @@ def main():
             st.error(f"Error displaying image: {str(e)}")
             st.warning("Please try uploading a different image file.")
 
-            with tab1:
+        with tab1:
                 st.subheader("Plant Identification Results")
                 if st.session_state['loading']:
                     st.markdown("""
@@ -839,7 +839,7 @@ def main():
                         st.markdown(f"• {uses}")
                     st.markdown("</div>", unsafe_allow_html=True)
 
-            with tab2:
+        with tab2:
                 st.subheader("Disease Detection Results")
                # Initialize ElevenLabs client
                 elevenlabs_client = ElevenLabs(api_key=st.secrets["ELEVENLABS_API_KEY"])
