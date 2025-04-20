@@ -844,7 +844,7 @@ def main():
                         model_name = "distilgpt2"
                         tokenizer = AutoTokenizer.from_pretrained(model_name)
                         model = AutoModelForCausalLM.from_pretrained(model_name)
-                        pipe = pipeline("text-generation", model=model, tokenizer=tokenizer,max_new_tokens=50)
+                        pipe = pipeline("text-generation", model=model, tokenizer=tokenizer,max_new_tokens=100, return_full_text=False)
                         st.session_state.llm = HuggingFacePipeline(pipeline=pipe)
                   except Exception as e:
                         st.error(f"Failed to load LLM: {str(e)}")
