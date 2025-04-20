@@ -840,64 +840,64 @@ def main():
                 st.subheader("Disease Detection Results")            
     
                 if "llm" not in st.session_state:
-              try:
-                  model_name = "distilgpt2"
-                  tokenizer = AutoTokenizer.from_pretrained(model_name)
-                  model = AutoModelForCausalLM.from_pretrained(model_name)
-                  pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_length=100)
-                  st.session_state.llm = HuggingFacePipeline(pipeline=pipe)
-              except Exception as e:
-                  st.error(f"Failed to load LLM: {str(e)}")
-                  st.session_state.llm = None
+                  try:
+                        model_name = "distilgpt2"
+                        tokenizer = AutoTokenizer.from_pretrained(model_name)
+                        model = AutoModelForCausalLM.from_pretrained(model_name)
+                        pipe = pipeline("text-generation", model=model, tokenizer=tokenizer, max_length=100)
+                        st.session_state.llm = HuggingFacePipeline(pipeline=pipe)
+                  except Exception as e:
+                        st.error(f"Failed to load LLM: {str(e)}")
+                        st.session_state.llm = None
 
-          with st.sidebar:
-              st.header("🌿 PhytoSense Chat Assistant")
-              st.markdown("Ask about plant diseases or medicinal uses!")
+                with st.sidebar:
+                    st.header("🌿 PhytoSense Chat Assistant")
+                    st.markdown("Ask about plant diseases or medicinal uses!")
 
-              # Chat history
-              if "chat_history" not in st.session_state:
-                  st.session_state.chat_history = [
-                      {"role": "assistant", "content": "Hi! Ask about tomato blight or neem uses."}
-                  ]
+                    # Chat history
+                    if "chat_history" not in st.session_state:
+                        st.session_state.chat_history = [
+                            {"role": "assistant", "content": "Hi! Ask about tomato blight or neem uses."}
+                        ]
 
-              # Display chat messages
-              chat_container = st.container()
-              with chat_container:
-                  for message in st.session_state.chat_history:
-                      with st.chat_message(message["role"], avatar="🌱" if message["role"] == "assistant" else None):
-                          st.markdown(message["content"])
+                    # Display chat messages
+                    chat_container = st.container()
+                    with chat_container:
+                        for message in st.session_state.chat_history:
+                            with st.chat_message(message["role"], avatar="🌱" if message["role"] == "assistant" else None):
+                                st.markdown(message["content"])
 
-              # User input
-              prompt = st.chat_input("Ask a question (e.g., 'What causes tomato blight?')")
-              if prompt:
-                  st.session_state.chat_history.append({"role": "user", "content": prompt})
-                  with chat_container:
-                      with st.chat_message("user"):
-                          st.markdown(prompt)
+                    # User input
+                    prompt = st.chat_input("Ask a question (e.g., 'What causes tomato blight?')")
+                    if prompt:
+                        st.session_state.chat_history.append({"role": "user", "content": prompt})
+                        with chat_container:
+                            with st.chat_message("user"):
+                                st.markdown(prompt)
 
-                  with st.spinner("Generating response..."):
-                      # Generate response with LLM or fallback
-                      if st.session_state.llm:
-                          llm_prompt = f"You are a plant care expert. Use this context: {disease_info} {methods_of_preparation} {use_of_medicine}. Answer concisely: {prompt}"
-                          try:
-                              response = st.session_state.llm(llm_prompt).strip()
-                              if not response:
-                                  response = "Sorry, I couldn't generate a response. Try rephrasing."
-                          except Exception as e:
-                              response = f"LLM error: {str(e)}. Try again."
-                      else:
-                          response = "LLM unavailable. Try asking about tomato blight or neem."
+                        with st.spinner("Generating response..."):
+                            # Generate response with LLM or fallback
+                            if st.session_state.llm:
+                                llm_prompt = f"You are a plant care expert. Use this context: {disease_info} {methods_of_preparation} {use_of_medicine}. Answer concisely: {prompt}"
+                                try:
+                                    response = st.session_state.llm(llm_prompt).strip()
+                                    if not response:
+                                        response = "Sorry, I couldn't generate a response. Try rephrasing."
+                                except Exception as e:
+                                    response = f"LLM error: {str(e)}. Try again."
+                            else:
+                                response = "LLM unavailable. Try asking about tomato blight or neem."
 
-                      st.session_state.chat_history.append({
-                          "role": "assistant",
-                          "content": response
-                      })
-                      with chat_container:
-                          with st.chat_message("assistant", avatar="🌱"):
-                              st.markdown(response)
+                            st.session_state.chat_history.append({
+                                "role": "assistant",
+                                "content": response
+                            })
+                            with chat_container:
+                                with st.chat_message("assistant", avatar="🌱"):
+                                    st.markdown(response)
 
-          with st.sidebar.expander("How to Use"):
-              st.write("Adjust settings for disease detection.")
+                with st.sidebar.expander("How to Use"):
+                    st.write("Adjust settings for disease detection.")
 
     
                 confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
