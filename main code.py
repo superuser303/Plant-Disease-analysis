@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend for Streamlit Cloud
 import gdown
 import tensorflow as tf
 import streamlit as st
@@ -23,6 +25,8 @@ from elevenlabs import VoiceSettings
 import io
 from langchain_community.llms import HuggingFacePipeline
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+import matplotlib.pyplot as plt
+
 # Debug statements
 print(f"TensorFlow version: {tf.__version__}")
 from tensorflow.keras.preprocessing import image
@@ -841,26 +845,26 @@ def main():
             st.subheader("Disease Detection Results")
            # Initialize ElevenLabs client
             elevenlabs_client = ElevenLabs(api_key=st.secrets["ELEVENLABS_API_KEY"])
-
+    
             # Track character usage
             if "elevenlabs_chars_used" not in st.session_state:
                 st.session_state.elevenlabs_chars_used = 0
-
+    
             def text_to_speech(text, voice_id="pNInz6obpgDQGcFmaJgB"):  # Adam voice
                 try:
-                    audio = elevenlabs_client.text_to_speech.convert(
+                    audio_stream = elevenlabs_client.text_to_speech.convert(
                         voice_id=voice_id,
                         text=text,
                         model_id="eleven_multilingual_v2",
                         voice_settings=VoiceSettings(stability=0.7, similarity_boost=0.5)
                     )
                     # Collect generator output into bytes
-                    audio_bytes = b"".join(audio_stream)  # Combine chunks
+                    audio_bytes = b"".join(audio_stream)  # Fixed variable name
                     st.session_state.elevenlabs_chars_used += len(text)
                     return io.BytesIO(audio_bytes)
                 except Exception as e:
                     st.error(f"Audio generation failed: {str(e)}")
-                    return None 
+                    return None
         
 
             # Initialize LLM with error handling
@@ -940,7 +944,7 @@ def main():
 
             global device
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
+            img_tensor = preproce/ss_image(img, brightness=brightness, contrast=contrast).to(device)
 
             with st.spinner("Analyzing..."):
                 disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
@@ -961,8 +965,9 @@ def main():
                 
                 fig, ax = plt.subplots()
                 ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
-                plt.xticks(rotation=90)
+                ax.tick_params(axis='x', rotation=90)
                 st.pyplot(fig)
+                plt.close(fig)  # Free memory
 
                 feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
                 if feedback == "No":
