@@ -859,54 +859,53 @@ def main():
                         st.session_state.llm_pipeline = None
             
                 with st.sidebar:
-                                    st.header("🌿 PhytoSense Chat Assistant")
-                                    st.markdown("Ask about plant diseases or medicinal uses!")
-                            
-                                    # Chat history
-                                    if "chat_history" not in st.session_state:
-                                        st.session_state.chat_history = [
-                                            {"role": "assistant", "content": "Hi! Ask about tomato blight or neem uses."}
-                                        ]
-                            
-                                    # Display chat messages
-                                    chat_container = st.container()
-                                    with chat_container:
-                                        for message in st.session_state.chat_history:
-                                            with st.chat_message(message["role"], avatar="🌱" if message["role"] == "assistant" else None):
-                                                st.markdown(message["content"])
-                            
-                                    # User input
-                                    prompt = st.chat_input("Ask a question (e.g., 'What causes tomato blight?')")
-                                    if prompt:
-                                        st.session_state.chat_history.append({"role": "user", "content": prompt})
-                                        with chat_container:
-                                            with st.chat_message("user"):
-                                                st.markdown(prompt)
-                            
-                                            with st.spinner("Generating response..."):
-                                                if st.session_state.llm_pipeline:
-                                                    llm_prompt = f"Act as a plant care expert. Answer concisely: {prompt}"
-                                                    try:
-                                                        outputs = st.session_state.llm_pipeline(llm_prompt, max_new_tokens=100)
-                                                        response = outputs[0]["generated_text"].strip() if outputs else "Sorry, no response generated."
-                                                        if not response:
-                                                            response = "Sorry, I couldn't generate a response. Try rephrasing."
-                                                    except Exception as e:
-                                                        response = f"LLM error: {str(e)}. Try a simpler question."
-                                                    # Clear memory
-                                                    import gc
-                                                    gc.collect()
-                                                else:
-                                                    response = "LLM unavailable. Try asking about tomato blight or neem."
+                            st.header("🌿 PhytoSense Chat Assistant")
+                            st.markdown("Ask about plant diseases or medicinal uses!")
+                            if "chat_history" not in st.session_state:
+                                st.session_state.chat_history = [
+                                                {"role": "assistant", "content": "Hi! Ask about tomato blight or neem uses."}
+                                            ]
                                 
-                                                st.session_state.chat_history.append({
-                                                    "role": "assistant",
-                                                    "content": response
-                                                })
-                                                with chat_container:
-                                                    with st.chat_message("assistant", avatar="🌱"):
-                                                        st.markdown(response)        
-                    
+                            chat_container = st.container()
+                            with chat_container:
+                                for message in st.session_state.chat_history:
+                                    with st.chat_message(message["role"], avatar="🌱" if message["role"] == "assistant" else None):
+                                         st.markdown(message["content"])
+                                        
+                            # User input
+                            prompt = st.chat_input("Ask a question (e.g., 'What causes tomato blight?')")
+                            if prompt:
+                                st.session_state.chat_history.append({"role": "user", "content": prompt})
+                                with chat_container:
+                                    with st.chat_message("user"):
+                                        st.markdown(prompt)
+                                        
+                                with st.spinner("Generating response..."):
+                                    if st.session_state.llm_pipeline:
+                                        llm_prompt = f"Act as a plant care expert. Answer concisely: {prompt}"
+                                        try:
+                                            outputs = st.session_state.llm_pipeline(llm_prompt, max_new_tokens=100)
+                                            response = outputs[0]["generated_text"].strip() if outputs else "Sorry, no response generated."
+                                            if not response:
+                                                response = "Sorry, I couldn't generate a response. Try rephrasing."
+                                        except Exception as e:
+                                            response = f"LLM error: {str(e)}. Try a simpler question."
+                                        # Clear memory
+                                        import gc
+                                        gc.collect()
+                                    else:
+                                        response = "LLM unavailable. Try asking about tomato blight or neem."
+                                        
+                                    st.session_state.chat_history.append({
+                                        "role": "assistant",
+                                        "content": response
+                                    })
+                                    with chat_container:
+                                        with st.chat_message("assistant", avatar="🌱"):
+                                            st.markdown(response)
+                                                    
+                                        
+
                 with st.sidebar.expander("How to Use"):
                     st.write("Adjust settings for disease detection.")
 
