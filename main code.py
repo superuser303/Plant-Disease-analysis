@@ -907,8 +907,8 @@ def main():
                             with st.chat_message("assistant", avatar="🌱"):
                                 st.markdown(response)
         
-            with st.sidebar.expander("How to Use"):
-                st.write("Adjust settings for disease detection.")
+                with st.sidebar.expander("How to Use"):
+                    st.write("Adjust settings for disease detection.")
                 
                 confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
                 brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
