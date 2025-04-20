@@ -1,5 +1,3 @@
-import matplotlib
-matplotlib.use('Agg')  # Non-interactive backend for Streamlit Cloud
 import gdown
 import tensorflow as tf
 import streamlit as st
