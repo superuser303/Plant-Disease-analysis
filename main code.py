@@ -836,116 +836,118 @@ def main():
                 st.markdown("</div>", unsafe_allow_html=True)
 
         with tab2:
-            st.subheader("Disease Detection Results")            
-        
-            # Initialize LLM with error handling
-            if "llm_pipeline" not in st.session_state:
-                try:
-                    model_name = "distilgpt2"
-                    tokenizer = AutoTokenizer.from_pretrained(model_name)
-                    model = AutoModelForCausalLM.from_pretrained(model_name)
-                    st.session_state.llm_pipeline = pipeline(
-                        "text-generation",
-                        model=model,
-                        tokenizer=tokenizer,
-                        max_new_tokens=100,
-                        return_full_text=False
-                    )
-                    # Clear memory
-                    import gc
-                    gc.collect()
-                except Exception as e:
-                    st.error(f"Failed to load LLM: {str(e)}")
-                    st.session_state.llm_pipeline = None
-        
+                st.subheader("Disease Detection Results")            
+            
+                # Initialize LLM with error handling
+                if "llm_pipeline" not in st.session_state:
+                    try:
+                        model_name = "distilgpt2"
+                        tokenizer = AutoTokenizer.from_pretrained(model_name)
+                        model = AutoModelForCausalLM.from_pretrained(model_name)
+                        st.session_state.llm_pipeline = pipeline(
+                            "text-generation",
+                            model=model,
+                            tokenizer=tokenizer,
+                            max_new_tokens=100,
+                            return_full_text=False
+                        )
+                        # Clear memory
+                        import gc
+                        gc.collect()
+                    except Exception as e:
+                        st.error(f"Failed to load LLM: {str(e)}")
+                        st.session_state.llm_pipeline = None
+            
                 with st.sidebar:
-                    st.header("🌿 PhytoSense Chat Assistant")
-                    st.markdown("Ask about plant diseases or medicinal uses!")
-            
-                    # Chat history
-                    if "chat_history" not in st.session_state:
-                        st.session_state.chat_history = [
-                            {"role": "assistant", "content": "Hi! Ask about tomato blight or neem uses."}
-                        ]
-            
-                    # Display chat messages
-                    chat_container = st.container()
-                    with chat_container:
-                        for message in st.session_state.chat_history:
-                            with st.chat_message(message["role"], avatar="🌱" if message["role"] == "assistant" else None):
-                                st.markdown(message["content"])
-            
-                    # User input
-                    prompt = st.chat_input("Ask a question (e.g., 'What causes tomato blight?')")
-                    if prompt:
-                        st.session_state.chat_history.append({"role": "user", "content": prompt})
-                        with chat_container:
-                            with st.chat_message("user"):
-                                st.markdown(prompt)
-            
-                        with st.spinner("Generating response..."):
-                            if st.session_state.llm_pipeline:
-                                llm_prompt = f"Act as a plant care expert. Answer concisely: {prompt}"
-                                try:
-                                    outputs = st.session_state.llm_pipeline(llm_prompt, max_new_tokens=100)
-                                    response = outputs[0]["generated_text"].strip() if outputs else "Sorry, no response generated."
-                                    if not response:
-                                        response = "Sorry, I couldn't generate a response. Try rephrasing."
-                                except Exception as e:
-                                    response = f"LLM error: {str(e)}. Try a simpler question."
-                                # Clear memory
-                                import gc
-                                gc.collect()
-                            else:
-                                response = "LLM unavailable. Try asking about tomato blight or neem."
-            
-                            st.session_state.chat_history.append({
-                                "role": "assistant",
-                                "content": response
-                            })
+                            st.header("🌿 PhytoSense Chat Assistant")
+                            st.markdown("Ask about plant diseases or medicinal uses!")
+                    
+                            # Chat history
+                            if "chat_history" not in st.session_state:
+                                st.session_state.chat_history = [
+                                    {"role": "assistant", "content": "Hi! Ask about tomato blight or neem uses."}
+                                ]
+                    
+                            # Display chat messages
+                            chat_container = st.container()
                             with chat_container:
-                                with st.chat_message("assistant", avatar="🌱"):
-                                    st.markdown(response)
-            
-                        with st.sidebar.expander("How to Use"):
-                            st.write("Adjust settings for disease detection.")
-                
-                confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
-                brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
-                contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
-    
-                global device
-                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
-    
-                with st.spinner("Analyzing..."):
-                    disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
-                    species = detect_species(disease)
-                    severity = estimate_severity(disease_confidence)
-    
-                    st.write(f"**Species:** {species}")
-                    st.write(f"**Disease:** {disease.replace('___', ' - ')}")
-                    st.write(f"**Confidence:** {disease_confidence:.2f}%")
-                    st.write(f"**Severity:** {severity}")
+                                for message in st.session_state.chat_history:
+                                    with st.chat_message(message["role"], avatar="🌱" if message["role"] == "assistant" else None):
+                                        st.markdown(message["content"])
                     
-                    if disease in disease_info:
-                        st.write(f"**Description:** {disease_info[disease]['desc']}")
-                        st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
-    
-                    heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
-                    st.image(heatmap, caption="Heatmap", width=200)
+                            # User input
+                            prompt = st.chat_input("Ask a question (e.g., 'What causes tomato blight?')")
+                            if prompt:
+                                st.session_state.chat_history.append({"role": "user", "content": prompt})
+                                with chat_container:
+                                    with st.chat_message("user"):
+                                        st.markdown(prompt)
                     
-                    fig, ax = plt.subplots()
-                    ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
-                    ax.tick_params(axis='x', rotation=90)
-                    st.pyplot(fig)
-                    plt.close(fig)  # Free memory
-    
-                    feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
-                    if feedback == "No":
-                        with open("feedback.txt", "a") as f:
-                            f.write(f"{disease},{disease_confidence}\n")
+                                with st.spinner("Generating response..."):
+                                    if st.session_state.llm_pipeline:
+                                        llm_prompt = f"Act as a plant care expert. Answer concisely: {prompt}"
+                                        try:
+                                            outputs = st.session_state.llm_pipeline(llm_prompt, max_new_tokens=100)
+                                            response = outputs[0]["generated_text"].strip() if outputs else "Sorry, no response generated."
+                                            if not response:
+                                                response = "Sorry, I couldn't generate a response. Try rephrasing."
+                                        except Exception as e:
+                                            response = f"LLM error: {str(e)}. Try a simpler question."
+                                        # Clear memory
+                                        import gc
+                                        gc.collect()
+                                    else:
+                                        response = "LLM unavailable. Try asking about tomato blight or neem."
+                    
+                                    st.session_state.chat_history.append({
+                                        "role": "assistant",
+                                        "content": response
+                                    })
+                                    with chat_container:
+                                        with st.chat_message("assistant", avatar="🌱"):
+                                            st.markdown(response)
+                    
+                                with st.sidebar.expander("How to Use"):
+                                    st.write("Adjust settings for disease detection.")
+                                
+                                confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
+                                brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
+                                contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
+                    
+                                global device
+                                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                                img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
+                    
+                                with st.spinner("Analyzing..."):
+                                    disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
+                                    species = detect_species(disease)
+                                    severity = estimate_severity(disease_confidence)
+                    
+                                    st.write(f"**Species:** {species}")
+                                    st.write(f"**Disease:** {disease.replace('___', ' - ')}")
+                                    st.write(f"**Confidence:** {disease_confidence:.2f}%")
+                                    st.write(f"**Severity:** {severity}")
+                                    
+                                    if disease in disease_info:
+                                        st.write(f"**Description:** {disease_info[disease]['desc']}")
+                                        st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
+                    
+                                    heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
+                                    st.image(heatmap, caption="Heatmap", width=200)
+                                    
+                                    fig, ax = plt.subplots()
+                                    ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
+                                    ax.tick_params(axis='x', rotation=90)
+                                    st.pyplot(fig)
+                                    plt.close(fig)  # Free memory
+                    
+                                    feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
+                                    if feedback == "No":
+                                        with open("feedback.txt", "a") as f:
+                                            f.write(f"{disease},{disease_confidence}\n")
 
+                
+                
     # About Section
     st.markdown("""
         <div class="glass-card">
