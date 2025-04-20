@@ -940,7 +940,7 @@ def main():
 
             global device
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            img_tensor = preproce/ss_image(img, brightness=brightness, contrast=contrast).to(device)
+            img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
 
             with st.spinner("Analyzing..."):
                 disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
