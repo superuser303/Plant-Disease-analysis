@@ -883,29 +883,29 @@ def main():
                                             with st.chat_message("user"):
                                                 st.markdown(prompt)
                             
-                                        with st.spinner("Generating response..."):
-                                            if st.session_state.llm_pipeline:
-                                                llm_prompt = f"Act as a plant care expert. Answer concisely: {prompt}"
-                                                try:
-                                                    outputs = st.session_state.llm_pipeline(llm_prompt, max_new_tokens=100)
-                                                    response = outputs[0]["generated_text"].strip() if outputs else "Sorry, no response generated."
-                                                    if not response:
-                                                        response = "Sorry, I couldn't generate a response. Try rephrasing."
-                                                except Exception as e:
-                                                    response = f"LLM error: {str(e)}. Try a simpler question."
-                                                # Clear memory
-                                                import gc
-                                                gc.collect()
-                                            else:
-                                                response = "LLM unavailable. Try asking about tomato blight or neem."
-                            
-                                            st.session_state.chat_history.append({
-                                                "role": "assistant",
-                                                "content": response
-                                            })
-                                            with chat_container:
-                                                with st.chat_message("assistant", avatar="🌱"):
-                                                    st.markdown(response)
+                                            with st.spinner("Generating response..."):
+                                                if st.session_state.llm_pipeline:
+                                                    llm_prompt = f"Act as a plant care expert. Answer concisely: {prompt}"
+                                                    try:
+                                                        outputs = st.session_state.llm_pipeline(llm_prompt, max_new_tokens=100)
+                                                        response = outputs[0]["generated_text"].strip() if outputs else "Sorry, no response generated."
+                                                        if not response:
+                                                            response = "Sorry, I couldn't generate a response. Try rephrasing."
+                                                    except Exception as e:
+                                                        response = f"LLM error: {str(e)}. Try a simpler question."
+                                                    # Clear memory
+                                                    import gc
+                                                    gc.collect()
+                                                else:
+                                                    response = "LLM unavailable. Try asking about tomato blight or neem."
+                                
+                                                st.session_state.chat_history.append({
+                                                    "role": "assistant",
+                                                    "content": response
+                                                })
+                                                with chat_container:
+                                                    with st.chat_message("assistant", avatar="🌱"):
+                                                        st.markdown(response)
                     
                 with st.sidebar.expander("How to Use"):
                     st.write("Adjust settings for disease detection.")
