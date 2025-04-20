@@ -907,44 +907,44 @@ def main():
                                         with st.chat_message("assistant", avatar="🌱"):
                                             st.markdown(response)
                     
-                                with st.sidebar.expander("How to Use"):
-                                    st.write("Adjust settings for disease detection.")
+                with st.sidebar.expander("How to Use"):
+                    st.write("Adjust settings for disease detection.")
 
-        confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
-        brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
-        contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
+                confidence_threshold = st.slider("Confidence Threshold (%)", 0, 100, 90)
+                brightness = st.slider("Brightness", 0.5, 1.5, 1.0)
+                contrast = st.slider("Contrast", 0.5, 1.5, 1.0)
                     
-        global device
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
-                    
-        with st.spinner("Analyzing..."):
-            disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
-            species = detect_species(disease)
-            severity = estimate_severity(disease_confidence)
-                    
-            st.write(f"**Species:** {species}")
-            st.write(f"**Disease:** {disease.replace('___', ' - ')}")
-            st.write(f"**Confidence:** {disease_confidence:.2f}%")
-            st.write(f"**Severity:** {severity}")
-                                    
-        if disease in disease_info:
-            st.write(f"**Description:** {disease_info[disease]['desc']}")
-            st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
-                    
-            heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
-            st.image(heatmap, caption="Heatmap", width=200)
-                                    
-            fig, ax = plt.subplots()
-            ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
-            ax.tick_params(axis='x', rotation=90)
-            st.pyplot(fig)
-            plt.close(fig)  # Free memory
-                    
-            feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
-            if feedback == "No":
-             with open("feedback.txt", "a") as f:
-                f.write(f"{disease},{disease_confidence}\n")
+                global device
+                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                img_tensor = preprocess_image(img, brightness=brightness, contrast=contrast).to(device)
+                            
+                with st.spinner("Analyzing..."):
+                    disease, disease_confidence = predict_disease(st.session_state['model_disease'], img_tensor, disease_class_names, confidence_threshold / 100)
+                    species = detect_species(disease)
+                    severity = estimate_severity(disease_confidence)
+                            
+                    st.write(f"**Species:** {species}")
+                    st.write(f"**Disease:** {disease.replace('___', ' - ')}")
+                    st.write(f"**Confidence:** {disease_confidence:.2f}%")
+                    st.write(f"**Severity:** {severity}")
+                                            
+                if disease in disease_info:
+                    st.write(f"**Description:** {disease_info[disease]['desc']}")
+                    st.write(f"**Remedy:** {disease_info[disease]['remedy']}")
+                            
+                    heatmap = generate_heatmap(st.session_state['model_disease'], img_tensor, disease_class_names.index(disease) if "Unknown" not in disease else 0)
+                    st.image(heatmap, caption="Heatmap", width=200)
+                                            
+                    fig, ax = plt.subplots()
+                    ax.bar(disease_class_names, st.session_state['model_disease'](img_tensor)[0].cpu().softmax(dim=0).detach().numpy())
+                    ax.tick_params(axis='x', rotation=90)
+                    st.pyplot(fig)
+                    plt.close(fig)  # Free memory
+                            
+                    feedback = st.radio("Prediction correct?", ("Yes", "No"), key="fb_disease")
+                    if feedback == "No":
+                        with open("feedback.txt", "a") as f:
+                            f.write(f"{disease},{disease_confidence}\n")
                         
                                 
                 
