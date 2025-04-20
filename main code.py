@@ -988,8 +988,8 @@ def main():
         </div>
     """, unsafe_allow_html=True)
 
-# Start API in background
-threading.Thread(target=run_api, daemon=True).start()
-
-if __name__ == "__main__":
-    main()
+    # Start API in background
+    threading.Thread(target=run_api, daemon=True).start()
+    
+    if __name__ == "__main__":
+        main()
