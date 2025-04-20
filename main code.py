@@ -858,7 +858,7 @@ def main():
                         st.error(f"Failed to load LLM: {str(e)}")
                         st.session_state.llm_pipeline = None
             
-                        with st.sidebar:
+                with st.sidebar:
                                     st.header("🌿 PhytoSense Chat Assistant")
                                     st.markdown("Ask about plant diseases or medicinal uses!")
                             
@@ -905,7 +905,7 @@ def main():
                                                 })
                                                 with chat_container:
                                                     with st.chat_message("assistant", avatar="🌱"):
-                                                        st.markdown(response)
+                                                        st.markdown(response)        
                     
                 with st.sidebar.expander("How to Use"):
                     st.write("Adjust settings for disease detection.")
