@@ -855,12 +855,12 @@ def main():
                         voice_settings=VoiceSettings(stability=0.7, similarity_boost=0.5)
                     )
                     # Collect generator output into bytes
-                        audio_bytes = b"".join(audio_stream)  # Combine chunks
-                        st.session_state.elevenlabs_chars_used += len(text)
-                        return io.BytesIO(audio_bytes)
-                    except Exception as e:
-                        st.error(f"Audio generation failed: {str(e)}")
-                        return None 
+                    audio_bytes = b"".join(audio_stream)  # Combine chunks
+                    st.session_state.elevenlabs_chars_used += len(text)
+                    return io.BytesIO(audio_bytes)
+                except Exception as e:
+                    st.error(f"Audio generation failed: {str(e)}")
+                    return None 
         
 
             # Initialize LLM with error handling
